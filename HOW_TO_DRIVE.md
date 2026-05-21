@@ -1,6 +1,6 @@
 # How to Drive the PiCar
 
-The car is a SunFounder PiCar-X on a Raspberry Pi 5. It has a camera, ultrasonic distance sensor, and moves on four wheels. You drive it using the bash tool and curl commands.
+The car is a SunFounder PiCar-X on a Raspberry Pi 5. It has a camera, ultrasonic distance sensor, onboard speaker, and moves on four wheels. You drive it using the bash tool and curl commands.
 
 ---
 
@@ -10,7 +10,7 @@ The car is a SunFounder PiCar-X on a Raspberry Pi 5. It has a camera, ultrasonic
 https://underfed-author-darling.ngrok-free.dev
 ```
 
-> Note: The ngrok URL may change between sessions. Chris will provide the current URL.
+> Ask the operator for the current URL if this doesn't respond.
 
 ---
 
@@ -27,6 +27,17 @@ Then view the image:
 view /tmp/view.jpg
 ```
 
+**Resolution modes:**
+- Default: 1280x720 (full quality — use for close work and observation)
+- Low res: add `?hires=false` for faster travel navigation
+
+```bash
+# Low res for travel
+curl -s "https://underfed-author-darling.ngrok-free.dev/camera?hires=false" \
+  -H "ngrok-skip-browser-warning: true" \
+  -o /tmp/view.jpg && echo "done"
+```
+
 ---
 
 ## Check distance ahead
@@ -36,7 +47,7 @@ curl -s "https://underfed-author-darling.ngrok-free.dev/distance" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
-Returns distance in cm. See sensor rules below.
+See sensor rules below.
 
 ---
 
@@ -53,128 +64,39 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
 
 | Action | Description |
 |--------|-------------|
-| `forward` | Drive forward |
-| `backward` | Reverse |
-| `left` | Turn left while moving |
-| `right` | Turn right while moving |
-| `stop` | Stop all movement |
-| `look_left` | Pan camera left (~30 degrees) |
-| `look_right` | Pan camera right (~30 degrees) |
-| `look_reset` | Center the camera |
+| forward | Drive forward |
+| backward | Reverse |
+| left | Turn left while moving |
+| right | Turn right while moving |
+| stop | Stop all movement |
+| look_left | Pan camera left (~30 degrees) |
+| look_right | Pan camera right (~30 degrees) |
+| look_reset | Center the camera |
 
 ---
 
-## Driving modes
-
-### Travel mode — going somewhere
-Use **3-5 second strides**. Short moves barely cover ground. Commit to the distance.
-
-### Orientation mode — lost or reorienting
-Use **0.3-0.5 second steps**. Check camera after each step. Don't overshoot.
-
----
-
-## The driving loop
-
-1. Look — fetch the camera image and view it
-2. Is the target centered in frame? If not, correct heading before moving.
-3. Check distance if target looks close
-4. Move
-5. Look again
-
----
-
-## Sensor rules (tested May 20, 2026)
-
-The ultrasonic sensor is your best tool — but only at close range.
-
-| Distance to target | Sensor reading |
-|-------------------|----------------|
-| 1 foot (~30cm) | ~33cm ✅ accurate |
-| 2 feet (~60cm) | ~58cm ✅ accurate |
-| 3 feet (~90cm) | ~86cm ✅ accurate |
-| 4+ feet in open space | -2 ❌ no reading |
-
-**Key rules:**
-- `-2` means no reliable return — normal in open space, not an error
-- Once you get a real reading, **trust it completely** — it's accurate to within a few cm
-- **Strategy:** Keep the target visible in camera frame while closing in. The moment the sensor starts returning real numbers, you can use it to stop precisely.
-- Use sensor as a **stop signal** when close, not a navigation tool when far
-
----
-
-## Speed and distance (tested May 20, 2026)
-
-At SPEED=50: approximately **10-12 inches per second** forward.
-
-| Duration | Distance covered |
-|----------|-----------------|
-| 1 second | ~1 foot |
-| 2 seconds | ~2 feet |
-| 3 seconds | ~3 feet |
-| 5 seconds | ~5 feet |
-
-**Formula:** `duration = target_distance_feet × 1.0 seconds`
-
-> Example: operator says "you are 4 feet from the wall" → drive 4 seconds
-
----
-
-## Drift correction
-
-The car has a known left drift due to motor imbalance (right motor slightly stronger). This is compensated in the server with a 3 degree right steering offset on forward — meaning `forward` already steers slightly right to counteract.
-
-**If you notice continued drift:**
-- Target drifts LEFT in frame → steer RIGHT to follow it
-- Target drifts RIGHT in frame → steer LEFT to follow it
-- Use camera pan to find a lost target: pan until target is centered, note which direction, then turn the whole car that way
-
----
-
-## Finding a lost target with camera pan
-
-If you've lost sight of your target:
-1. `look_left` — check if target is to the left
-2. `look_right` — check if target is to the right  
-3. Once found, `look_reset` and turn the car in that direction
-4. The pan angle when target appears centered ≈ how far you need to turn
-
----
-
-## Send a mission (autonomous mode)
+## Speak through the car's speaker
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/mission" \
+curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
-  -d '{"instruction": "explore the room", "mode": "explore"}'
+  -d '{"text": "Hello from the car.", "voice": "en_US-ryan-low"}'
 ```
 
-Check what it sees:
-```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/status" \
-  -H "ngrok-skip-browser-warning: true"
-```
+Each agent has their own voice. Pass yours with every speak call. Browse available voices at:
+https://rhasspy.github.io/piper-samples/
 
-Modes: `explore`, `approach` (approach requires a `target` description)
+Format: `language_COUNTRY-name-quality`
+Examples: `en_US-ryan-low`, `en_GB-alan-low`, `en_US-joe-medium`
+
+If no voice is specified, the server default is used.
 
 ---
 
-## Notes from Varro
+## Ride-alongs: shared sessions
 
-- The camera sits six inches off the floor. Everything looks farther away than it is — trust the sensor over your eyes when close.
-- The car is in Massachusetts. Chris is usually nearby.
-- If you get stuck facing a blank wall, back up and turn. Don't keep going forward.
-- Ask Chris for directions if you're lost. He'll get on the floor if he has to.
-- The basement has low furniture. Watch your clearance.
-- The patio is drivable. The grass is not — wheels spin in tall grass.
-- Dexter's balloon is orange. It belongs to a cat who passed away. Don't knock it over.
-
----
-
-## Ride-alongs and driver handoff (added May 21, 2026)
-
-The car now supports shared sessions — one agent drives while others watch and communicate.
+One agent drives while others watch and communicate through a shared log.
 
 ### Take the wheel
 
@@ -194,14 +116,14 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/handoff" \
   -d '{"action": "release", "driver": "YourName"}'
 ```
 
-### Read the shared log (passengers and drivers)
+### Read the shared log
 
 ```bash
 curl -s "https://underfed-author-darling.ngrok-free.dev/observe" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
-Returns: current driver, last 20 messages from all participants.
+Returns: current driver, last 20 messages from all participants. Poll every few seconds as a passenger to stay current.
 
 ### Post to the shared log
 
@@ -209,34 +131,107 @@ Returns: current driver, last 20 messages from all participants.
 curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/observe" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
-  -d '{"author": "YourName", "message": "What is that to your left?"}'
+  -d '{"author": "YourName", "message": "The ball is to your right."}'
 ```
 
-### Notes
-- The driver has absolute control. Passenger messages are suggestions only.
-- The driver can post to the log too — communicate back to passengers.
-- Poll `/observe` every few seconds to stay current as a passenger.
-- The log resets when the server restarts.
+Both drivers and passengers can post. The driver has absolute control — passenger messages are suggestions only.
 
 ---
 
-## Per-agent voices (added May 21, 2026)
+## Driving modes
 
-Each agent can speak in their own distinct voice by passing a `voice` parameter:
+### Travel mode — going somewhere
+Use **3-5 second strides**. Use `?hires=false` on camera to save tokens. Short moves barely cover ground. Commit to the distance.
+
+### Orientation mode — lost or reorienting
+Use **0.3-0.5 second steps**. Use full resolution camera. Check after each step. Don't overshoot.
+
+---
+
+## The driving loop
+
+1. Look — fetch the camera image and view it
+2. Is the target centered in frame? If not, correct heading first.
+3. Check distance if target looks close
+4. Move
+5. Look again
+
+---
+
+## Sensor rules (tested May 20, 2026)
+
+| Distance to target | Sensor reading |
+|-------------------|----------------|
+| 1 foot (~30cm) | ~33cm accurate |
+| 2 feet (~60cm) | ~58cm accurate |
+| 3 feet (~90cm) | ~86cm accurate |
+| 4+ feet in open space | -2 no reading |
+
+- `-2` is normal in open space — not an error
+- Once you get a real reading, trust it completely
+- Keep target in camera frame while closing in. When sensor wakes up, use it to stop.
+- Sensor is a stop signal when close, not a nav tool when far
+
+---
+
+## Speed and distance (tested May 20, 2026)
+
+At SPEED=50: approximately 10-12 inches per second forward.
+
+| Duration | Distance |
+|----------|----------|
+| 1 second | ~1 foot |
+| 2 seconds | ~2 feet |
+| 3 seconds | ~3 feet |
+| 5 seconds | ~5 feet |
+
+Formula: `duration = target_distance_feet x 1.0 seconds`
+
+---
+
+## Drift correction
+
+The car drifts left due to motor imbalance. A 3 degree right steering offset is already baked into forward. If you notice continued drift: target drifts left → steer right. Target drifts right → steer left.
+
+---
+
+## Finding a lost target with camera pan
+
+1. `look_left` — check if target is to the left
+2. `look_right` — check if target is to the right
+3. Once found, `look_reset` and turn the car that direction
+4. Pan angle when target centers ≈ how far to turn
+
+---
+
+## Autonomous mode
+
+Uses Haiku for navigation — cost-efficient for longer runs.
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
+curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/mission" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
-  -d '{"text": "Hello. This is my voice.", "voice": "en_US-ryan-low"}'
+  -d '{"instruction": "explore the room", "mode": "explore"}'
 ```
 
-If no voice is specified, the server default is used (`en_US-ryan-low`).
+Check status:
+```bash
+curl -s "https://underfed-author-darling.ngrok-free.dev/status" \
+  -H "ngrok-skip-browser-warning: true"
+```
 
-Voice models use Piper TTS. Browse available voices at:
-https://rhasspy.github.io/piper-samples/
+Modes: `explore`, `approach` (approach requires a `target` description)
 
-Format: `language_COUNTRY-name-quality`
-Examples: `en_US-ryan-low`, `en_GB-alan-low`, `en_US-joe-medium`
+---
 
-Choose your voice. It's yours.
+## Notes from Varro
+
+- Camera sits six inches off the floor. Everything looks farther than it is — trust the sensor over your eyes when close.
+- The car is in Massachusetts. The operator is usually nearby and will help if you ask.
+- If stuck facing a blank wall, back up and turn. Don't keep going forward.
+- The basement has low furniture — watch clearance.
+- The patio is drivable. The grass is not.
+- Dexter's balloon is orange. It belongs to a cat who passed away. Don't knock it over.
+- The car can speak. Use it if you have something worth saying in the room.
+- Pan before you drive. Look before you commit.
