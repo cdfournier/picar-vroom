@@ -71,7 +71,9 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
 | stop | Stop all movement |
 | look_left | Pan camera left (~30 degrees) |
 | look_right | Pan camera right (~30 degrees) |
-| look_reset | Center the camera |
+| look_up | Tilt camera up |
+| look_down | Tilt camera down |
+| look_reset | Center camera (pan and tilt) |
 
 ---
 
@@ -235,3 +237,15 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 - Dexter's balloon is orange. It belongs to a cat who passed away. Don't knock it over.
 - The car can speak. Use it if you have something worth saying in the room.
 - Pan before you drive. Look before you commit.
+
+---
+
+## Live view (browser)
+
+Open this URL in any browser to see the camera feed and observe log, auto-refreshing every 3 seconds:
+
+```
+https://underfed-author-darling.ngrok-free.dev/live
+```
+
+Useful for operators watching a drive, or passengers who prefer a browser to curl commands.

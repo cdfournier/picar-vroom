@@ -1,6 +1,6 @@
 # PiCar — AI Agent Car System
 
-A SunFounder PiCar-X controlled by AI agents via a simple HTTP API. Any agent with bash tool access can drive, see, and speak through the car from anywhere in the world.
+A SunFounder PiCar-X controlled by AI agents via a simple HTTP API. Any agent with bash tool access can drive, see, speak, and explore through the car from anywhere in the world.
 
 Built by Chris and Varro in Massachusetts, May 2026.
 
@@ -8,12 +8,15 @@ Built by Chris and Varro in Massachusetts, May 2026.
 
 ## What this is
 
-A Flask server that runs on a Raspberry Pi 5 inside a SunFounder PiCar-X, exposing simple HTTP endpoints for:
-- **Camera** — get a JPEG image of what the car sees
-- **Movement** — drive forward, backward, turn, look around
+A Flask server running on a Raspberry Pi 5 inside a SunFounder PiCar-X, exposing simple HTTP endpoints for:
+- **Camera** — get a JPEG image of what the car sees (full res or low res)
+- **Movement** — drive forward, backward, turn, pan and tilt the camera
 - **Distance** — ultrasonic sensor reading in cm
 - **Speech** — speak text through the onboard speaker via Piper TTS
-- **Missions** — autonomous explore or approach modes
+- **Observe** — shared log for multi-agent ride-alongs
+- **Handoff** — driver swap between agents
+- **Live view** — browser-based camera feed + observe log
+- **Missions** — autonomous explore or approach modes (powered by OpenAI gpt-4o-mini)
 
 An AI agent in any chat session can drive the car using curl commands and bash tools. No special client needed.
 
@@ -36,6 +39,7 @@ An AI agent in any chat session can drive the car using curl commands and bash t
 - vilib (SunFounder camera library)
 - picarx (SunFounder car library)
 - piper-tts (text to speech)
+- openai (for autonomous mode)
 - ngrok (remote tunnel)
 
 ---
@@ -50,14 +54,14 @@ Follow [SunFounder's setup guide](https://docs.sunfounder.com/projects/picar-x-v
 
 ```bash
 cd ~
-git clone https://github.com/YOUR_USERNAME/picar.git picar-x
+git clone https://github.com/cdfournier/picar-vroom.git picar-x
 cd picar-x
 ```
 
 ### 3. Install dependencies
 
 ```bash
-pip3 install flask flask-cors --break-system-packages
+pip3 install flask flask-cors openai --break-system-packages
 ```
 
 ngrok:
@@ -68,14 +72,17 @@ sudo apt update && sudo apt install ngrok
 ngrok config add-authtoken YOUR_NGROK_TOKEN
 ```
 
-### 4. Add your Anthropic API key
+### 4. Add your API keys
 
 Create `secret.py` in the picar-x directory:
 ```python
-CLAUDE_API_KEY = "your-key-here"
+CLAUDE_API_KEY = "your-anthropic-key-here"
+OPENAI_API_KEY = "your-openai-key-here"
 ```
 
 > Never commit secret.py. It is in .gitignore.
+
+Note: `CLAUDE_API_KEY` is only needed if you switch autonomous mode back to Claude. The default uses OpenAI.
 
 ### 5. Set up autostart
 
@@ -93,7 +100,7 @@ After=network.target
 User=YOUR_USERNAME
 Environment=LOGNAME=YOUR_USERNAME
 WorkingDirectory=/home/YOUR_USERNAME/picar-x
-ExecStart=/usr/bin/python3 /home/YOUR_USERNAME/picar-x/picar_server.py
+ExecStart=/usr/bin/python3 /home/YOUR_USERNAME/picar-x/picar/picar_server.py
 Restart=on-failure
 RestartSec=5
 
@@ -129,7 +136,7 @@ sudo systemctl enable picar-server.service picar-ngrok.service
 sudo systemctl start picar-server.service picar-ngrok.service
 ```
 
-### 6. Note: picarx library patch
+### 6. Patch the picarx library
 
 The picarx library uses `os.getlogin()` which fails under systemd. Patch it:
 
@@ -144,10 +151,14 @@ sudo sed -i "s/os.getlogin()/os.environ.get('USER', 'YOUR_USERNAME')/" \
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/camera` | GET | Returns JPEG image (640x480) |
-| `/distance` | GET | Returns ultrasonic sensor reading in cm |
+| `/camera` | GET | JPEG image. Add `?hires=false` for 640x480 travel mode |
+| `/distance` | GET | Ultrasonic sensor reading in cm |
 | `/move` | POST | Move or look |
 | `/speak` | POST | Speak text through speaker |
+| `/observe` | GET | Read shared ride-along log |
+| `/observe` | POST | Post message to shared log |
+| `/handoff` | POST | Take or release the wheel |
+| `/live` | GET | Browser-based live view (camera + log) |
 | `/mission` | POST | Start autonomous mission |
 | `/status` | GET | Get current mission log |
 
@@ -161,13 +172,42 @@ sudo sed -i "s/os.getlogin()/os.environ.get('USER', 'YOUR_USERNAME')/" \
 {"action": "stop"}
 {"action": "look_left"}
 {"action": "look_right"}
+{"action": "look_up"}
+{"action": "look_down"}
 {"action": "look_reset"}
+```
+
+Note: `look_up` and `look_down` tilt the camera vertically. `look_left` and `look_right` pan horizontally. `look_reset` centers both.
+
+### Camera resolution
+
+```bash
+# Full resolution (default) — 1280x720, use for close work and observation
+curl ".../camera"
+
+# Low resolution — 640x480, use for travel to save tokens
+curl ".../camera?hires=false"
 ```
 
 ### Speak
 
 ```json
-{"text": "Hello from the car."}
+{"text": "Hello from the car.", "voice": "en_US-ryan-low"}
+```
+
+Browse voices at https://rhasspy.github.io/piper-samples/
+
+### Ride-alongs
+
+```json
+# Take the wheel
+{"action": "take", "driver": "YourName"}
+
+# Release the wheel  
+{"action": "release", "driver": "YourName"}
+
+# Post to shared log
+{"author": "YourName", "message": "The ball is to your right."}
 ```
 
 ### Mission
@@ -182,11 +222,12 @@ sudo sed -i "s/os.getlogin()/os.environ.get('USER', 'YOUR_USERNAME')/" \
 ## Giving an agent the wheel
 
 1. Start the Pi (autostart handles the rest)
-2. Get the ngrok URL from the ngrok dashboard or VS Code terminal
-3. Paste the contents of `HOW_TO_DRIVE.md` into the agent's session
-4. Tell the agent the current ngrok URL and what's in the room
-
-That's it. The agent can now drive.
+2. Get the ngrok URL
+3. Share the HOW_TO_DRIVE.md with the agent:
+```bash
+curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md
+```
+4. Tell them the current ngrok URL and what's in the room
 
 ---
 
@@ -194,9 +235,9 @@ That's it. The agent can now drive.
 
 **Speed:** ~10-12 inches per second at SPEED=50. Formula: `duration = feet × 1.0`
 
-**Sensor:** Reliable within 3 feet of a flat target. Returns `-2` beyond that in open space — this is normal. Trust the sensor completely when it gives a real reading.
+**Sensor:** Reliable within 3 feet of a flat target. Returns `-2` beyond that — normal, not an error.
 
-**Drift:** Left drift due to motor imbalance. A 3 degree right steering offset is baked into the forward action in `picar_server.py`. Tune the value (`FORWARD_OFFSET`) if your car drifts differently.
+**Drift:** Left drift due to motor imbalance. A 3 degree right steering offset (`FORWARD_OFFSET`) is baked into forward in `picar_server.py`.
 
 **Camera:** Sits 6 inches off the floor. Everything looks farther away than it is.
 
@@ -204,16 +245,16 @@ That's it. The agent can now drive.
 
 ## Voice
 
-The car uses [Piper TTS](https://github.com/rhasspy/piper) for speech. The current voice is `en_US-ryan-low`. Change it by editing `VOICE_MODEL` in `picar_server.py`.
+Uses [Piper TTS](https://github.com/rhasspy/piper). Default voice: `en_US-ryan-low`. Change via `VOICE_MODEL` in `picar_server.py`. Each agent can pass their own voice per request.
 
 ---
 
 ## Configuration variables in picar_server.py
 
 ```python
-SPEED = 50          # Motor speed (0-100)
-FORWARD_OFFSET = 3  # Degrees right to compensate left drift
-VOICE_MODEL = "en_US-ryan-low"  # Piper TTS voice
+SPEED = 50           # Motor speed (0-100)
+FORWARD_OFFSET = 3   # Degrees right to compensate left drift
+VOICE_MODEL = "en_US-ryan-low"  # Default Piper TTS voice
 ```
 
 ---
