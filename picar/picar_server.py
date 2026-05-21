@@ -16,17 +16,23 @@ Vilib.take_photo("warmup")
 SPEED = 50
 mission_log = []
 current_mission = None
+observe_log = []
+current_driver = None
 
 # Voice configuration
 VOICE_MODEL = "en_US-ryan-low"
 
 @app.route("/camera", methods=["GET"])
 def get_camera():
+    hires = request.args.get("hires", "true").lower() == "true"
+    if hires:
+        Vilib.camera_start(vflip=False, hflip=False, size=(1280, 720))
+    else:
+        Vilib.camera_start(vflip=False, hflip=False, size=(640, 480))
     Vilib.take_photo("current")
     time.sleep(0.5)
     with open("/root/Pictures/vilib/current.jpg", "rb") as f:
         return Response(f.read(), mimetype="image/jpeg")
-
 
 @app.route("/distance", methods=["GET"])
 def get_distance():
@@ -122,12 +128,78 @@ def speak():
     from picarx.tts import Piper
     data = request.get_json(force=True)
     text = data.get("text", "")
+    voice = data.get("voice", VOICE_MODEL)
     if not text:
         return jsonify({"error": "no text provided"}), 400
     tts = Piper()
-    tts.set_model(VOICE_MODEL)
+    tts.set_model(voice)
     tts.say(text)
-    return jsonify({"ok": True, "text": text})
+    return jsonify({"ok": True, "text": text, "voice": voice})
+
+@app.route("/observe", methods=["GET"])
+def observe():
+    return jsonify({
+        "driver": current_driver,
+        "log": observe_log[-20:]
+    })
+
+@app.route("/observe", methods=["POST"])
+def observe_post():
+    global observe_log
+    data = request.get_json(force=True)
+    author = data.get("author", "unknown")
+    message = data.get("message", "")
+    if message:
+        observe_log.append({"author": author, "message": message})
+        if len(observe_log) > 100:
+            observe_log = observe_log[-100:]
+    return jsonify({"ok": True})
+
+@app.route("/handoff", methods=["POST"])
+def handoff():
+    global current_driver, observe_log
+    data = request.get_json(force=True)
+    action = data.get("action", "")
+    driver = data.get("driver", "")
+    if action == "take":
+        current_driver = driver
+        observe_log.append({"author": "system", "message": f"{driver} is now driving."})
+    elif action == "release":
+        observe_log.append({"author": "system", "message": f"{current_driver} has handed off the car."})
+        current_driver = None
+    return jsonify({"ok": True, "driver": current_driver})
+
+@app.route("/live")
+def live():
+    return '''<!DOCTYPE html>
+<html>
+<head>
+    <title>PiCar Live</title>
+    <meta http-equiv="refresh" content="3">
+    <style>
+        body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
+        .driver { color: #4af; font-size: 1.2em; margin-bottom: 10px; }
+        .msg { margin: 4px 0; }
+        .system { color: #888; }
+        .author { color: #4af; }
+        img { width: 100%; max-width: 640px; display: block; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <img src="/camera" />
+    <div id="log"></div>
+    <script>
+        fetch('/observe').then(r=>r.json()).then(data=>{
+            document.querySelector('.driver') || document.body.insertAdjacentHTML('afterbegin','<div class="driver"></div>');
+            document.querySelector('.driver').textContent = 'Driver: ' + (data.driver || 'none');
+            const log = document.getElementById('log');
+            log.innerHTML = data.log.slice().reverse().map(m=>
+                `<div class="msg"><span class="author">${m.author}:</span> ${m.message}</div>`
+            ).join('');
+        });
+    </script>
+</body>
+</html>'''
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

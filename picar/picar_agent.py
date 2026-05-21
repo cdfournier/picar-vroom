@@ -1,13 +1,13 @@
-import anthropic
+import openai
 import base64
 import requests
 import time
 import json
 
 PI_URL = "http://10.0.0.20:5000"
-from secret import CLAUDE_API_KEY
+from secret import OPENAI_API_KEY
 
-client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 # ─── Modes ───────────────────────────────────────────────
 MODE_EXPLORE = "explore"
@@ -51,22 +51,21 @@ def is_too_close():
     return False
 
 
-# ─── Claude calls ────────────────────────────────────────
-def ask_claude_explore(image_b64, memory=[]):
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+# ─── OpenAI calls ────────────────────────────────────────
+def ask_gpt_explore(image_b64, memory=[]):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         max_tokens=200,
         messages=[
             {
                 "role": "user",
                 "content": [
                     {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": image_b64,
-                        },
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_b64}",
+                            "detail": "low"
+                        }
                     },
                     {
                         "type": "text",
@@ -83,34 +82,33 @@ Rules:
 - Avoid repeating the same action more than twice in a row
 - observation should be vivid and specific
 
-Respond with ONLY the JSON. No explanation.""",
-                    },
-                ],
+Respond with ONLY the JSON. No explanation."""
+                    }
+                ]
             }
-        ],
+        ]
     )
-    text = response.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
     try:
         return json.loads(text)
     except:
         return {"observation": "unclear", "action": "stop"}
 
 
-def ask_claude_approach(image_b64, memory=[]):
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+def ask_gpt_approach(image_b64, memory=[]):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         max_tokens=150,
         messages=[
             {
                 "role": "user",
                 "content": [
                     {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": image_b64,
-                        },
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_b64}",
+                            "detail": "low"
+                        }
                     },
                     {
                         "type": "text",
@@ -132,13 +130,13 @@ Rules:
 - "medium" means clearly visible, several feet away
 - "far" means small in the frame
 
-Respond with ONLY the JSON. No explanation.""",
-                    },
-                ],
+Respond with ONLY the JSON. No explanation."""
+                    }
+                ]
             }
-        ],
+        ]
     )
-    text = response.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
     try:
         return json.loads(text)
     except:
@@ -157,7 +155,7 @@ def explore(steps=20, log=None):
             continue
 
         image = get_image()
-        result = ask_claude_explore(image, memory)
+        result = ask_gpt_explore(image, memory)
 
         action = result.get("action", "stop")
         observation = result.get("observation", "")
@@ -195,7 +193,7 @@ def approach(steps=40, log=None, target=None):
             continue
 
         image = get_image()
-        result = ask_claude_approach(image, memory)
+        result = ask_gpt_approach(image, memory)
 
         target_found = result.get("target_found", False)
         action = result.get("action", "stop")
