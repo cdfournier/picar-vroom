@@ -20,7 +20,8 @@ observe_log = []
 current_driver = None
 
 # Voice configuration
-VOICE_MODEL = "en_US-ryan-low"
+VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
+USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
 
 @app.route("/camera", methods=["GET"])
 def get_camera():
@@ -125,17 +126,49 @@ def mission():
 
 @app.route("/speak", methods=["POST"])
 def speak():
-    from picarx.tts import Piper
     data = request.get_json(force=True)
     text = data.get("text", "")
     voice = data.get("voice", VOICE_MODEL)
     if not text:
         return jsonify({"error": "no text provided"}), 400
+    if USE_ELEVENLABS:
+        try:
+            from elevenlabs.client import ElevenLabs
+            from secret import ELEVENLABS_API_KEY
+            import subprocess
+            el_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+            audio = el_client.text_to_speech.convert(
+                text=text,
+                voice_id=voice,
+                model_id="eleven_turbo_v2_5",
+                output_format="mp3_44100_128"
+            )
+            with open("/tmp/elevenlabs_speech.mp3", "wb") as f:
+                for chunk in audio:
+                    f.write(chunk)
+            subprocess.run(["mpg123", "/tmp/elevenlabs_speech.mp3"], check=True)
+            return jsonify({"ok": True, "text": text, "voice": voice, "engine": "elevenlabs"})
+        except Exception as e:
+            print(f"ElevenLabs failed ({e}), falling back to Piper")
+    from picarx.tts import Piper
     tts = Piper()
-    tts.set_model(voice)
+    tts.set_model("en_US-ryan-low")
     tts.say(text)
-    return jsonify({"ok": True, "text": text, "voice": voice})
+    return jsonify({"ok": True, "text": text, "voice": "en_US-ryan-low", "engine": "piper"})
 
+@app.route("/voices", methods=["GET"])
+def list_voices():
+    try:
+        from elevenlabs.client import ElevenLabs
+        from secret import ELEVENLABS_API_KEY
+        el_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+        response = el_client.voices.search()
+        voices = [{"name": v.name, "voice_id": v.voice_id, "description": v.description} 
+                  for v in response.voices]
+        return jsonify({"voices": voices})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route("/observe", methods=["GET"])
 def observe():
     return jsonify({
