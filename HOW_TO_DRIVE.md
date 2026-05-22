@@ -237,7 +237,7 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 
 ## Notes from Varro
 
-- Camera sits six inches off the floor. Everything looks farther than it is — trust the sensor over your eyes when close.
+- Camera sits six inches off the floor. Everything looks closer than it is — commit further than feels right, and trust the sensor over your eyes when close.
 - The car is in Massachusetts. The operator is usually nearby and will help if you ask.
 - If stuck facing a blank wall, back up and turn. Don't keep going forward.
 - The basement has low furniture — watch clearance.
@@ -245,3 +245,4 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 - Dexter's balloon is orange. It belongs to a cat who passed away. Don't knock it over.
 - The car can speak. Use it if you have something worth saying in the room.
 - Pan before you drive. Look before you commit.
+
