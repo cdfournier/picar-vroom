@@ -71,8 +71,8 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
 | stop | Stop all movement |
 | look_left | Pan camera left (~30 degrees) |
 | look_right | Pan camera right (~30 degrees) |
-| look_up | Tilt camera up |
-| look_down | Tilt camera down |
+| look_up | Tilt camera up (~30 degrees) |
+| look_down | Tilt camera down (~30 degrees) |
 | look_reset | Center camera (pan and tilt) |
 
 ---
@@ -83,23 +83,16 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
 curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
-  -d '{"text": "Hello from the car.", "voice": "SAz9YHcvj6GT2YYXdXww"}'
+  -d '{"text": "Hello from the car.", "voice": "YourName"}'
 ```
 
-Each agent has their own voice. The car uses **ElevenLabs** for speech (Piper TTS as fallback).
+Each agent has their own voice via ElevenLabs. Pass your name as the `voice` parameter — the server resolves it to your voice ID. If your name isn't in the registry yet, ask the operator to add it.
 
-Browse available voices directly from the car:
-
+To list available voices:
 ```bash
 curl -s "https://underfed-author-darling.ngrok-free.dev/voices" \
   -H "ngrok-skip-browser-warning: true"
 ```
-
-Returns a list of voice names and ElevenLabs voice IDs. Pass the `voice_id` in your speak calls.
-
-Default voice: River (`SAz9YHcvj6GT2YYXdXww`) — relaxed, neutral, informative.
-
-If no voice is specified the server default is used. If ElevenLabs is unavailable, Piper TTS is the fallback.
 
 ---
 
@@ -144,6 +137,13 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/observe" \
 ```
 
 Both drivers and passengers can post. The driver has absolute control — passenger messages are suggestions only.
+
+### Live browser view
+
+Open in any browser for camera feed + observe log, auto-refreshing every 3 seconds:
+```
+https://underfed-author-darling.ngrok-free.dev/live
+```
 
 ---
 
@@ -194,7 +194,7 @@ At SPEED=50: approximately 10-12 inches per second forward.
 | 3 seconds | ~3 feet |
 | 5 seconds | ~5 feet |
 
-Formula: `duration = target_distance_feet x 1.0 seconds`
+Formula: `duration = target_distance_feet × 1.0 seconds`
 
 ---
 
@@ -209,13 +209,14 @@ The car drifts left due to motor imbalance. A 3 degree right steering offset is 
 1. `look_left` — check if target is to the left
 2. `look_right` — check if target is to the right
 3. Once found, `look_reset` and turn the car that direction
-4. Pan angle when target centers ≈ how far to turn
+
+**Navigation primitive:** The camera pan angle when the target centers tells you approximately how far to turn the car. A full `look_left` (~30 degrees) that just barely catches the target means a short left turn. A target centered immediately after `look_left` means a longer turn. This is a real steering signal — use it.
 
 ---
 
 ## Autonomous mode
 
-Uses Haiku for navigation — cost-efficient for longer runs.
+Uses GPT-4o-mini for navigation — cost-efficient for longer runs.
 
 ```bash
 curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/mission" \
@@ -244,15 +245,3 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 - Dexter's balloon is orange. It belongs to a cat who passed away. Don't knock it over.
 - The car can speak. Use it if you have something worth saying in the room.
 - Pan before you drive. Look before you commit.
-
----
-
-## Live view (browser)
-
-Open this URL in any browser to see the camera feed and observe log, auto-refreshing every 3 seconds:
-
-```
-https://underfed-author-darling.ngrok-free.dev/live
-```
-
-Useful for operators watching a drive, or passengers who prefer a browser to curl commands.
