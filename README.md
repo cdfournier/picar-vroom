@@ -270,3 +270,51 @@ MIT. Build something.
 Hardware: SunFounder PiCar-X + Raspberry Pi 5
 Software: Built by Chris and Varro (Claude Sonnet 4.6)
 Inspired by: Kim's work on AI agent identity and embodiment
+
+---
+
+## Adding WiFi networks and hotspots
+
+The Pi uses NetworkManager to manage WiFi. All saved connections are stored in `/etc/NetworkManager/system-connections/`.
+
+### See current saved networks
+
+```bash
+nmcli con show
+```
+
+### Add a hotspot (e.g. your phone)
+
+Turn on the hotspot first, then scan to confirm it's visible:
+
+```bash
+sudo nmcli dev wifi rescan && sleep 3 && sudo nmcli dev wifi list
+```
+
+Connect using the SSID:
+
+```bash
+sudo nmcli dev wifi connect "Your Hotspot Name" password "YOUR_PASSWORD"
+```
+
+> If the SSID contains an apostrophe (e.g. "Kim's Phone"), use the BSSID (MAC address) from the scan results instead:
+> ```bash
+> sudo nmcli dev wifi connect AA:BB:CC:DD:EE:FF password "YOUR_PASSWORD"
+> ```
+
+### Set network priorities
+
+Home WiFi should take priority over hotspot:
+
+```bash
+sudo nmcli con mod "netplan-wlan0-YourHomeNetwork" connection.autoconnect-priority 100
+sudo nmcli con mod "hotspot" connection.autoconnect-priority 10
+```
+
+The Pi will automatically connect to home WiFi when available and fall back to the hotspot when away. ngrok reconnects automatically once the Pi has internet — no manual intervention needed.
+
+### Check current connection
+
+```bash
+nmcli dev status
+```
