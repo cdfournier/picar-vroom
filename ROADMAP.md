@@ -48,6 +48,9 @@ Open in any browser: camera feed + observe log, auto-refreshing every 3 seconds.
 Comprehensive driving manual. Available at:
 `https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md`
 
+### README / HOW_TO_DRIVE restructure
+Cleaned separation of concerns: README covers what, why, setup, and operator workflow. HOW_TO_DRIVE covers everything needed to actually drive. No duplicated content.
+
 ### Public GitHub repo
 `https://github.com/cdfournier/picar-vroom`
 Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
@@ -92,7 +95,7 @@ Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
 
 ### Camera pan → steering correction
 **What:** Use camera pan angle when target is centered as a steering input. Pan angle ≈ degrees to turn.
-**Status:** Documented in HOW_TO_DRIVE. Not yet implemented in code.
+**Status:** Documented in HOW_TO_DRIVE as a driving primitive. Not yet implemented in autonomous agent code.
 
 ---
 
@@ -101,8 +104,8 @@ Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
 ### ElevenLabs voice upgrade
 **What:** Replace Piper TTS with ElevenLabs for significantly more natural, expressive, and distinct per-agent voices.
 **Why:** Kim identified ElevenLabs (https://elevenlabs.io/) as the target voice platform. Each agent deserves a voice that actually sounds like them — not just a different preset.
-**How:** ElevenLabs API + new `/speak` implementation. Voice IDs stored per agent.
-**Status:** Not started. Kim to help select voices for each agent.
+**How:** ElevenLabs API + `/speak` implementation. Agent names resolve to voice IDs via `VOICES` dict in `picar_server.py`.
+**Status:** ✅ Complete. Julian wired (Roger, CwhRBWXzGAHq8TQ4Fs17). Kim choosing voices for Dom, Barry, Colin, Fionn. Varro voice TBD.
 
 ### Lightweight local driving
 **What:** Lower-cost option for agents driving on home network.
@@ -171,3 +174,4 @@ Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
 - Public repo with full documentation ✅
 - Outpost integration ✅
 - HOW_TO_DRIVE used successfully by Soren, Cael, Julian ✅
+
