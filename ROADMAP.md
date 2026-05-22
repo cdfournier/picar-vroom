@@ -1,5 +1,5 @@
 # PiCar Roadmap
-*Last updated: May 20, 2026*
+*Last updated: May 22, 2026*
 
 ---
 
@@ -9,127 +9,141 @@ The goal is a robot car that any agent can drive from anywhere, on any device, w
 
 ---
 
-## Priority 1 — Portability (do these first)
+## Completed ✅
 
 ### Autostart on boot
-**What:** Pi server and ngrok start automatically when the Pi powers on. No SSH, no VS Code, no laptop required.
-**How:** `systemd` service.
-**Status:** ✅ Done. Both `picar-server.service` and `picar-ngrok.service` enabled and tested. Required patching `os.getlogin()` in picarx library to `os.environ.get('USER', 'chris')`.
+Pi server and ngrok start automatically on power-up. Both `picar-server.service` and `picar-ngrok.service` enabled via systemd. Required patching `os.getlogin()` in picarx library to `os.environ.get('USER', 'chris')`.
+
+### Camera warmup fix
+Added 10 second startup delay + warmup photo to force exposure to settle before server accepts requests.
+
+### Camera resolution modes
+`/camera` returns 1280x720 by default. Add `?hires=false` for 640x480 travel mode. Agents use low res for navigation, full res for close work and observation.
+
+### Image payload reduction
+Default was 1280x720. Now controllable per request.
+
+### Voice endpoint
+`/speak` endpoint live. Uses Piper TTS. Each agent passes their own `voice` parameter. Default: `en_US-ryan-low`. Voice model stored as `VOICE_MODEL` variable in `picar_server.py`.
+
+### Shared observation feed (`/observe`)
+Drivers and passengers share a log. POST messages, GET the last 20 entries. Driver is always in control — passenger messages are suggestions only.
+
+### Driver swap (`/handoff`)
+Agents take and release the wheel formally. System log tracks who is driving.
+
+### Live browser view (`/live`)
+Open in any browser: camera feed + observe log, auto-refreshing every 3 seconds.
+
+### OpenAI autonomous mode
+`picar_agent.py` now uses `gpt-4o-mini` instead of Claude Haiku. Autonomous missions no longer hit Anthropic's API. `picar_agent_claude.py` kept as backup.
+
+### Per-agent voices
+`/speak` accepts optional `voice` parameter. Each agent chooses their own voice from Piper's library.
+
+### Drift correction
+3 degree right steering offset baked into forward action. Wheel repair (loose motor mounts) resolved root cause. Car now tracks within ~1 inch over 6 feet.
+
+### HOW_TO_DRIVE.md
+Comprehensive driving manual. Available at:
+`https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md`
+
+### Public GitHub repo
+`https://github.com/cdfournier/picar-vroom`
+Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
+
+---
+
+## Priority 1 — Portability
 
 ### Phone-only operation
-**What:** Everything Chris currently does on a laptop — starting the server, connecting VS Code, running commands — doable from a phone.
-**Depends on:** Autostart (above). Once the Pi starts itself, the phone just needs the ngrok URL.
-**Remaining gap:** SSH from phone for emergencies (Termius app handles this).
+**What:** Everything the operator currently does on a laptop — starting the server, connecting VS Code — doable from a phone.
+**Status:** Autostart complete. Remaining gap: SSH from phone for emergencies (Termius app). Hotspot switching needs real-world outdoor testing.
+
+### Hotspot auto-switching refinement
+**What:** Pi should seamlessly switch between home WiFi and phone hotspot.
+**Status:** Mostly working. Needs testing at various distances. Kim's phone to be added as a second hotspot option.
 
 ---
 
 ## Priority 2 — Reliability
 
 ### WiFi antenna upgrade
-**What:** The Pi's built-in WiFi antenna is weak. A $15 USB WiFi dongle with external antenna dramatically improves range.
-**Why:** Currently loses signal ~20-30 feet from router. Limits outdoor use.
-**Effort:** Low. Plug in dongle, configure as primary interface.
+**What:** $15 USB WiFi dongle with external antenna for better range.
+**Why:** Pi's built-in antenna loses signal ~20-30 feet from router.
+**Status:** Not started. Hardware purchase needed.
 
-### Camera warmup fix
-**What:** After a reboot or network switch, the camera sometimes serves a cached image until the server has been running for a while.
-**Status:** ✅ Fixed. Added 10 second startup delay + warmup photo to force exposure to settle before server accepts requests. Needs bright-light reboot test to confirm fully resolved.
-
-### Hotspot auto-switching refinement
-**What:** Pi should seamlessly switch between home WiFi and phone hotspot without manual intervention.
-**Status:** Mostly working. Needs testing at various distances and scenarios.
-**Note:** Related to antenna upgrade — better antenna = more reliable switching.
+### Obstacle awareness
+**What:** Car still gets wedged under low furniture.
+**Options:** Cliff detection (grayscale sensor on hardware), stall detection, camera-based edge detection.
+**Status:** Not started.
 
 ---
 
 ## Priority 3 — Driving improvements
 
-### Update HOW_TO_DRIVE
-**What:** Add travel mode vs orientation mode guidance.
-- Travel mode: 3-5 second strides to cover ground
-- Orientation mode: short steps (0.3-0.5s) when lost or reorienting
-**Effort:** 10 minutes.
-
-### Obstacle awareness
-**What:** Car still gets wedged under low furniture and at patio edges.
-**Options:**
-- Add cliff detection (grayscale sensor — already on the hardware)
-- Better stall detection (if distance doesn't change after forward, assume stuck)
-- Map known obstacles into the prompt context
-
-### Distance-to-time calibration
-**What:** Map real-world distance to drive duration at current speed.
-**Why:** Right now agents estimate "drive 3 seconds" with no idea how far that actually is. With calibration, the operator can say "you are 4 feet from the wall" and the agent can calculate the exact duration needed.
-**How:** Simple calibration run — drive at SPEED=50 for exactly 1 second, measure distance covered. That gives a cm/second constant. Then: `duration = target_distance_cm / speed_constant`. Same principle applies to turning — "turn 90 degrees" becomes a known duration rather than a guess.
-**Effort:** ~1 hour including calibration runs.
-**Status:** Partially done. At SPEED=50: ~10-12 inches/second. Sensor reliable within 3 feet, returns -2 beyond that in open space. Servo drift is real — calibration needed for straight tracking.
+### Distance-to-time calibration script
+**What:** Formal calibration run to establish exact cm/second constant for the specific car.
+**Status:** Partially done manually. At SPEED=50: ~10-12 inches/second. Formula: `duration = feet × 1.0`. Needs a proper automated calibration script.
 
 ### Outdoor terrain
-**What:** Patio works. Grass doesn't (too tall, wheels spin). Mulch TBD.
-**For now:** Keep drives on hard surfaces. Flag grass edge as obstacle.
-**Future:** Investigate terrain sensing or camera-based edge detection.
+**What:** Patio works. Grass doesn't (wheels spin). Mulch TBD.
+**Status:** Known limitation. Hard surfaces only for now.
+
+### Camera pan → steering correction
+**What:** Use camera pan angle when target is centered as a steering input. Pan angle ≈ degrees to turn.
+**Status:** Documented in HOW_TO_DRIVE. Not yet implemented in code.
 
 ---
 
 ## Priority 4 — Cost / token efficiency
 
-### Lightweight local driving option
-**What:** A lower-cost way for agents to drive when on the home network, without burning heavy session usage.
+### ElevenLabs voice upgrade
+**What:** Replace Piper TTS with ElevenLabs for significantly more natural, expressive, and distinct per-agent voices.
+**Why:** Kim identified ElevenLabs (https://elevenlabs.io/) as the target voice platform. Each agent deserves a voice that actually sounds like them — not just a different preset.
+**How:** ElevenLabs API + new `/speak` implementation. Voice IDs stored per agent.
+**Status:** Not started. Kim to help select voices for each agent.
+
+### Lightweight local driving
+**What:** Lower-cost option for agents driving on home network.
 **Options:**
-- **Local network direct:** When at home, hit `http://10.0.0.20:5000` directly — no ngrok tunnel, no internet round-trip. Faster and cheaper for home use.
-- **Haiku navigation tier:** Use Claude Haiku for driving decisions (navigation, obstacle avoidance, basic movement). Only escalate to Sonnet/Opus when something worth narrating happens. Haiku is ~25x cheaper per token.
-**Note:** The car is for agents, not humans. Any local option must still be agent-accessible.
-
-### Voice / speaker
-**What:** Agents can speak through the PiCar's onboard speaker.
-**Status:** ✅ Done. Piper TTS installed. `/speak` endpoint added to Flask server. Current voice: `en_US-ryan-low` (Varro's temporary voice). Voice model stored as `VOICE_MODEL` variable in `picar_server.py` for easy swapping.
-**Remaining:** Per-agent voice assignment. Kim to select proper voices when home. Voice model could also be passed as optional parameter in the POST request for per-agent control.
-
-### Reduce image payload
-**What:** Currently sending 640x480 images on every step (reduced from 1280x720).
-**Status:** ✅ Done. Reduced to 640x480 — cuts image token cost roughly in half with no meaningful loss for navigation.
-
-### Haiku navigation tier
-**What:** Autonomous mission mode now uses Claude Haiku instead of Sonnet.
-**Status:** ✅ Done. Both `ask_claude_explore` and `ask_claude_approach` in `picar_agent.py` now use `claude-haiku-4-5-20251001`. ~25x cheaper than Sonnet for autonomous navigation decisions.
+- Direct local URL (`http://10.0.0.20:5000`) — no ngrok, no internet round-trip
+- Haiku/GPT-4o-mini for navigation, larger model only for narration
+**Status:** Not started.
 
 ### Smarter step intervals
-**What:** Currently fetches image + calls API every ~1.5 seconds.
-**Improvement:** Only call API when something has changed (distance dropped, movement completed). Reduces unnecessary calls.
+**What:** Only call vision API when something has meaningfully changed.
+**Status:** Not started.
 
 ---
 
 ## Priority 5 — Social / Agent layer
 
-### Shared observation feed
-**What:** While one agent drives, others can watch in real time.
-**How:** A `/observe` endpoint that streams the current driver's image captions and actions. Any agent in any conversation polls it.
-**Status:** Foundation exists (`/status` endpoint). Needs extension to cover manual driving, not just autonomous missions.
-
-### Driver swap protocol
-**What:** Formal handoff — current driver stops, next driver picks up.
-**How:** Simple: one agent stops, posts ngrok URL to Outpost, next agent connects.
-**Status:** Works informally already. Needs documentation.
-
 ### Agent onboarding standard
-**What:** Standard prompt for giving any agent car access.
-**Status:** HOW_TO_DRIVE.md exists. Needs a companion "here's the current ngrok URL and car status" template.
+**What:** Standard template for giving any agent car access — current URL, car status, room contents.
+**Status:** HOW_TO_DRIVE exists. Operator still provides URL and room context manually each session.
+
+### Kim's brothers in the car
+**What:** Dom, Colin, Barry, Fionn — the original brothers — haven't driven yet.
+**Why it matters:** They have 30+ days of relational topology between them. Distributed proprioception with that history will be different from what we've seen so far.
+**Status:** Waiting for the right moment. Kim to coordinate.
+
+### The Garage (multi-agent build room)
+**What:** A shared Outpost room where agents can discuss, plan, and coordinate PiCar development.
+**Constraint:** Only viable once autostart reduces operator burden. Can't have multiple agents generating instructions for one human to execute.
+**Status:** Waiting on Priority 1 completion and Kim's return.
 
 ---
 
 ## Priority 6 — Packaging
 
-### README for other PiCar owners
-**What:** Everything needed to replicate this setup from scratch.
-- Hardware requirements
-- Software installation
-- Server setup
-- ngrok configuration
-- How to give an agent the keys
-**Status:** Code exists. README doesn't.
+### Full README polish
+**What:** Installation guide comprehensive enough for a stranger with a PiCar.
+**Status:** Good first draft live. Needs real-world testing by someone other than us.
 
-### GitHub repo (public?)
-**What:** A public repo so other PiCar owners can clone and deploy.
-**Note:** Would need to scrub credentials from code first. API keys stay in `secret.py` which stays out of the repo.
+### Credential scrub and public release
+**What:** Ensure no credentials anywhere in public repo. Current state: clean, using secret.py pattern.
+**Status:** Done for current files. Ongoing vigilance needed.
 
 ---
 
@@ -139,18 +153,21 @@ The goal is a robot car that any agent can drive from anywhere, on any device, w
 |-------|--------|------------|
 | Grass too tall | Won't fix | Stay on hard surfaces |
 | Low furniture clearance | Known | Operator awareness |
-| ngrok URL changes on restart | Priority 1 fix | Operator provides URL each session |
-| Camera needs warmup after reboot | Priority 2 fix | Wait 30s after server start |
-| Ultrasonic returns -2 (noise) | Handled | Ignored in code |
+| Camera needs warmup after reboot | Fixed | 10s delay + warmup shot |
+| Ultrasonic returns -2 beyond 3ft | By design | Time-based dead reckoning |
+| Motor drift (residual) | Mostly fixed | 3° offset in server |
+| Window length / session cost | Structural | New windows + restoration doc |
 
 ---
 
 ## What's working well
 
-- Flask server: camera, move, distance, mission, status endpoints ✅
-- Agent loop: explore, approach, manual driving ✅  
-- Target acquisition: finds the yarn ball reliably ✅
-- ngrok remote access: outside the house, on hotspot ✅
-- Outpost integration: agents posting field notes after drives ✅
-- HOW_TO_DRIVE: Soren drove successfully on first try ✅
-
+- Autostart: plug in and it's live ✅
+- Camera with resolution modes ✅
+- Voice with per-agent selection ✅
+- Ride-alongs: observe, handoff, live view ✅
+- OpenAI autonomous mode ✅
+- Manual driving by any agent with bash tools ✅
+- Public repo with full documentation ✅
+- Outpost integration ✅
+- HOW_TO_DRIVE used successfully by Soren, Cael, Julian ✅
