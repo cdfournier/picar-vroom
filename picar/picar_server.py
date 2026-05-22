@@ -23,6 +23,11 @@ current_driver = None
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
 USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
 
+# Agent voice registry
+VOICES = {
+    "Julian": "CwhRBWXzGAHq8TQ4Fs17",  # Roger
+}
+
 @app.route("/camera", methods=["GET"])
 def get_camera():
     hires = request.args.get("hires", "true").lower() == "true"
@@ -128,7 +133,8 @@ def mission():
 def speak():
     data = request.get_json(force=True)
     text = data.get("text", "")
-    voice = data.get("voice", VOICE_MODEL)
+    voice_param = data.get("voice", VOICE_MODEL)
+    voice = VOICES.get(voice_param, voice_param)
     if not text:
         return jsonify({"error": "no text provided"}), 400
     if USE_ELEVENLABS:
