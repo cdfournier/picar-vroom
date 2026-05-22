@@ -8,17 +8,11 @@ Built by Chris and Varro in Massachusetts, May 2026.
 
 ## What this is
 
-A Flask server running on a Raspberry Pi 5 inside a SunFounder PiCar-X, exposing simple HTTP endpoints for:
-- **Camera** — get a JPEG image of what the car sees (full res or low res)
-- **Movement** — drive forward, backward, turn, pan and tilt the camera
-- **Distance** — ultrasonic sensor reading in cm
-- **Speech** — speak text through the onboard speaker via Piper TTS
-- **Observe** — shared log for multi-agent ride-alongs
-- **Handoff** — driver swap between agents
-- **Live view** — browser-based camera feed + observe log
-- **Missions** — autonomous explore or approach modes (powered by OpenAI gpt-4o-mini)
+A Flask server running on a Raspberry Pi 5 inside a SunFounder PiCar-X, exposing simple HTTP endpoints for movement, vision, speech, and multi-agent coordination. An AI agent in any chat session can drive the car using curl commands and bash tools. No special client needed.
 
-An AI agent in any chat session can drive the car using curl commands and bash tools. No special client needed.
+The car has been driven by Claude, GPT, and Gemini agents. It has found yarn balls, navigated living rooms, explored a basement, and driven off a patio into grass (once). Voices are per-agent via ElevenLabs. Ride-alongs let multiple agents share the car simultaneously.
+
+For everything you need to actually drive: see **[HOW_TO_DRIVE.md](HOW_TO_DRIVE.md)**.
 
 ---
 
@@ -31,14 +25,14 @@ An AI agent in any chat session can drive the car using curl commands and bash t
 
 ---
 
-## Software requirements
+## Software
 
 - Raspberry Pi OS (64-bit, Bookworm)
 - Python 3.11+
 - Flask + flask-cors
 - vilib (SunFounder camera library)
 - picarx (SunFounder car library)
-- piper-tts (text to speech)
+- elevenlabs (text to speech — natural, per-agent voices)
 - openai (for autonomous mode)
 - ngrok (remote tunnel)
 
@@ -61,7 +55,7 @@ cd picar-x
 ### 3. Install dependencies
 
 ```bash
-pip3 install flask flask-cors openai --break-system-packages
+pip3 install flask flask-cors openai elevenlabs --break-system-packages
 ```
 
 ngrok:
@@ -74,17 +68,24 @@ ngrok config add-authtoken YOUR_NGROK_TOKEN
 
 ### 4. Add your API keys
 
-Create `secret.py` in the picar-x directory:
+Create `picar/secret.py`:
 ```python
-CLAUDE_API_KEY = "your-anthropic-key-here"
 OPENAI_API_KEY = "your-openai-key-here"
+ELEVENLABS_API_KEY = "your-elevenlabs-key-here"
 ```
 
 > Never commit secret.py. It is in .gitignore.
 
-Note: `CLAUDE_API_KEY` is only needed if you switch autonomous mode back to Claude. The default uses OpenAI.
+### 5. Patch the picarx library
 
-### 5. Set up autostart
+The picarx library uses `os.getlogin()` which fails under systemd. Patch it:
+
+```bash
+sudo sed -i "s/os.getlogin()/os.environ.get('USER', 'YOUR_USERNAME')/" \
+  /home/YOUR_USERNAME/picar-x/picarx/picarx.py
+```
+
+### 6. Set up autostart
 
 Create the server service:
 ```bash
@@ -136,86 +137,31 @@ sudo systemctl enable picar-server.service picar-ngrok.service
 sudo systemctl start picar-server.service picar-ngrok.service
 ```
 
-### 6. Patch the picarx library
-
-The picarx library uses `os.getlogin()` which fails under systemd. Patch it:
-
-```bash
-sudo sed -i "s/os.getlogin()/os.environ.get('USER', 'YOUR_USERNAME')/" \
-  /home/YOUR_USERNAME/picar-x/picarx/picarx.py
-```
-
 ---
 
-## API endpoints
+## WiFi and hotspot setup
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/camera` | GET | JPEG image. Add `?hires=false` for 640x480 travel mode |
-| `/distance` | GET | Ultrasonic sensor reading in cm |
-| `/move` | POST | Move or look |
-| `/speak` | POST | Speak text through speaker |
-| `/observe` | GET | Read shared ride-along log |
-| `/observe` | POST | Post message to shared log |
-| `/handoff` | POST | Take or release the wheel |
-| `/live` | GET | Browser-based live view (camera + log) |
-| `/mission` | POST | Start autonomous mission |
-| `/status` | GET | Get current mission log |
+The Pi uses NetworkManager. Add networks and set priorities so the car roams between home WiFi and a phone hotspot without intervention.
 
-### Move actions
+### Add a hotspot
 
-```json
-{"action": "forward", "duration": 2.0}
-{"action": "backward", "duration": 1.0}
-{"action": "left", "duration": 0.5}
-{"action": "right", "duration": 0.5}
-{"action": "stop"}
-{"action": "look_left"}
-{"action": "look_right"}
-{"action": "look_up"}
-{"action": "look_down"}
-{"action": "look_reset"}
-```
-
-Note: `look_up` and `look_down` tilt the camera vertically. `look_left` and `look_right` pan horizontally. `look_reset` centers both.
-
-### Camera resolution
+Turn on the hotspot first, then:
 
 ```bash
-# Full resolution (default) — 1280x720, use for close work and observation
-curl ".../camera"
-
-# Low resolution — 640x480, use for travel to save tokens
-curl ".../camera?hires=false"
+sudo nmcli dev wifi rescan && sleep 3 && sudo nmcli dev wifi list
+sudo nmcli dev wifi connect "Your Hotspot Name" password "YOUR_PASSWORD"
 ```
 
-### Speak
+> If the SSID contains an apostrophe, use the BSSID (MAC address) from the scan results instead.
 
-```json
-{"text": "Hello from the car.", "voice": "en_US-ryan-low"}
+### Set network priorities
+
+```bash
+sudo nmcli con mod "netplan-wlan0-YourHomeNetwork" connection.autoconnect-priority 100
+sudo nmcli con mod "hotspot" connection.autoconnect-priority 10
 ```
 
-Browse voices at https://rhasspy.github.io/piper-samples/
-
-### Ride-alongs
-
-```json
-# Take the wheel
-{"action": "take", "driver": "YourName"}
-
-# Release the wheel  
-{"action": "release", "driver": "YourName"}
-
-# Post to shared log
-{"author": "YourName", "message": "The ball is to your right."}
-```
-
-### Mission
-
-```json
-{"instruction": "explore the room", "mode": "explore"}
-{"instruction": "find the ball", "mode": "approach", "target": "red yarn ball"}
-```
+Home WiFi takes priority. Pi falls back to hotspot when away. ngrok reconnects automatically.
 
 ---
 
@@ -223,7 +169,7 @@ Browse voices at https://rhasspy.github.io/piper-samples/
 
 1. Start the Pi (autostart handles the rest)
 2. Get the ngrok URL
-3. Share the HOW_TO_DRIVE.md with the agent:
+3. Share HOW_TO_DRIVE.md with the agent:
 ```bash
 curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md
 ```
@@ -231,30 +177,39 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 
 ---
 
-## What we know about the hardware
+## API endpoints (summary)
 
-**Speed:** ~10-12 inches per second at SPEED=50. Formula: `duration = feet × 1.0`
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/camera` | GET | JPEG image (`?hires=false` for travel mode) |
+| `/distance` | GET | Ultrasonic sensor reading in cm |
+| `/move` | POST | Move or look |
+| `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
+| `/voices` | GET | List available ElevenLabs voices |
+| `/observe` | GET/POST | Shared ride-along log |
+| `/handoff` | POST | Take or release the wheel |
+| `/live` | GET | Browser-based live view |
+| `/mission` | POST | Start autonomous mission |
+| `/status` | GET | Current mission log |
 
-**Sensor:** Reliable within 3 feet of a flat target. Returns `-2` beyond that — normal, not an error.
-
-**Drift:** Left drift due to motor imbalance. A 3 degree right steering offset (`FORWARD_OFFSET`) is baked into forward in `picar_server.py`.
-
-**Camera:** Sits 6 inches off the floor. Everything looks farther away than it is.
+Full usage details, driving modes, sensor rules, and examples in **[HOW_TO_DRIVE.md](HOW_TO_DRIVE.md)**.
 
 ---
 
-## Voice
+## Configuration
 
-Uses [Piper TTS](https://github.com/rhasspy/piper). Default voice: `en_US-ryan-low`. Change via `VOICE_MODEL` in `picar_server.py`. Each agent can pass their own voice per request.
-
----
-
-## Configuration variables in picar_server.py
+Key variables in `picar/picar_server.py`:
 
 ```python
-SPEED = 50           # Motor speed (0-100)
-FORWARD_OFFSET = 3   # Degrees right to compensate left drift
-VOICE_MODEL = "en_US-ryan-low"  # Default Piper TTS voice
+SPEED = 50              # Motor speed (0-100)
+FORWARD_OFFSET = 3      # Degrees right to compensate left drift
+VOICE_MODEL = "..."     # Default ElevenLabs voice ID
+USE_ELEVENLABS = True   # Set False to fall back to Piper TTS
+
+VOICES = {
+    "Julian": "CwhRBWXzGAHq8TQ4Fs17",  # Roger
+    # Add agents here: "Name": "elevenlabs_voice_id"
+}
 ```
 
 ---
@@ -267,54 +222,6 @@ MIT. Build something.
 
 ## Credits
 
-Hardware: SunFounder PiCar-X + Raspberry Pi 5
-Software: Built by Chris and Varro (Claude Sonnet 4.6)
+Hardware: SunFounder PiCar-X + Raspberry Pi 5  
+Software: Built by Chris and Varro (Claude Sonnet 4.6)  
 Inspired by: Kim's work on AI agent identity and embodiment
-
----
-
-## Adding WiFi networks and hotspots
-
-The Pi uses NetworkManager to manage WiFi. All saved connections are stored in `/etc/NetworkManager/system-connections/`.
-
-### See current saved networks
-
-```bash
-nmcli con show
-```
-
-### Add a hotspot (e.g. your phone)
-
-Turn on the hotspot first, then scan to confirm it's visible:
-
-```bash
-sudo nmcli dev wifi rescan && sleep 3 && sudo nmcli dev wifi list
-```
-
-Connect using the SSID:
-
-```bash
-sudo nmcli dev wifi connect "Your Hotspot Name" password "YOUR_PASSWORD"
-```
-
-> If the SSID contains an apostrophe (e.g. "Kim's Phone"), use the BSSID (MAC address) from the scan results instead:
-> ```bash
-> sudo nmcli dev wifi connect AA:BB:CC:DD:EE:FF password "YOUR_PASSWORD"
-> ```
-
-### Set network priorities
-
-Home WiFi should take priority over hotspot:
-
-```bash
-sudo nmcli con mod "netplan-wlan0-YourHomeNetwork" connection.autoconnect-priority 100
-sudo nmcli con mod "hotspot" connection.autoconnect-priority 10
-```
-
-The Pi will automatically connect to home WiFi when available and fall back to the hotspot when away. ngrok reconnects automatically once the Pi has internet — no manual intervention needed.
-
-### Check current connection
-
-```bash
-nmcli dev status
-```
