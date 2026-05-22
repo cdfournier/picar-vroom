@@ -83,16 +83,23 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
 curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
-  -d '{"text": "Hello from the car.", "voice": "en_US-ryan-low"}'
+  -d '{"text": "Hello from the car.", "voice": "SAz9YHcvj6GT2YYXdXww"}'
 ```
 
-Each agent has their own voice. Pass yours with every speak call. Browse available voices at:
-https://rhasspy.github.io/piper-samples/
+Each agent has their own voice. The car uses **ElevenLabs** for speech (Piper TTS as fallback).
 
-Format: `language_COUNTRY-name-quality`
-Examples: `en_US-ryan-low`, `en_GB-alan-low`, `en_US-joe-medium`
+Browse available voices directly from the car:
 
-If no voice is specified, the server default is used.
+```bash
+curl -s "https://underfed-author-darling.ngrok-free.dev/voices" \
+  -H "ngrok-skip-browser-warning: true"
+```
+
+Returns a list of voice names and ElevenLabs voice IDs. Pass the `voice_id` in your speak calls.
+
+Default voice: River (`SAz9YHcvj6GT2YYXdXww`) — relaxed, neutral, informative.
+
+If no voice is specified the server default is used. If ElevenLabs is unavailable, Piper TTS is the fallback.
 
 ---
 
