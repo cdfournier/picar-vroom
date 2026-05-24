@@ -244,5 +244,7 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 - The patio is drivable. The grass is not.
 - Dexter's balloon is orange. It belongs to a cat who passed away. Don't knock it over.
 - The car can speak. Use it if you have something worth saying in the room.
+- **If you get stuck or wedged, speak first.** Say where you are and what happened. The operator is usually nearby and can help without needing to see the camera feed. Then back up.
 - Pan before you drive. Look before you commit.
+
 
