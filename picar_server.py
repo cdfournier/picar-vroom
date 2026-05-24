@@ -138,6 +138,7 @@ def speak():
     voice = VOICES.get(voice_param, voice_param)
     if not text:
         return jsonify({"error": "no text provided"}), 400
+    SPEECH_FILE = "/home/chris/elevenlabs_speech.mp3"
     if USE_ELEVENLABS:
         try:
             from elevenlabs.client import ElevenLabs
@@ -150,17 +151,19 @@ def speak():
                 model_id="eleven_turbo_v2_5",
                 output_format="mp3_44100_128"
             )
-            with open("/tmp/elevenlabs_speech.mp3", "wb") as f:
+            with open(SPEECH_FILE, "wb") as f:
                 for chunk in audio:
                     f.write(chunk)
-            subprocess.run(["mpg123", "-o", "alsa", "/tmp/elevenlabs_speech.mp3"], check=True)
+            threading.Thread(target=lambda: subprocess.run(["mpg123", "-o", "alsa", SPEECH_FILE]), daemon=True).start()
             return jsonify({"ok": True, "text": text, "voice": voice, "engine": "elevenlabs"})
         except Exception as e:
             print(f"ElevenLabs failed ({e}), falling back to Piper")
-    from picarx.tts import Piper
-    tts = Piper()
-    tts.set_model("en_US-ryan-low")
-    tts.say(text)
+    def _piper():
+        from picarx.tts import Piper
+        tts = Piper()
+        tts.set_model("en_US-ryan-low")
+        tts.say(text)
+    threading.Thread(target=_piper, daemon=True).start()
     return jsonify({"ok": True, "text": text, "voice": "en_US-ryan-low", "engine": "piper"})
 
 @app.route("/voices", methods=["GET"])
@@ -243,4 +246,5 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
