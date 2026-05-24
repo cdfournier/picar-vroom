@@ -153,7 +153,7 @@ def speak():
             with open("/tmp/elevenlabs_speech.mp3", "wb") as f:
                 for chunk in audio:
                     f.write(chunk)
-            subprocess.run(["mpg123", "/tmp/elevenlabs_speech.mp3"], check=True)
+            subprocess.run(["mpg123", "-o", "alsa", "/tmp/elevenlabs_speech.mp3"], check=True)
             return jsonify({"ok": True, "text": text, "voice": voice, "engine": "elevenlabs"})
         except Exception as e:
             print(f"ElevenLabs failed ({e}), falling back to Piper")
@@ -243,3 +243,4 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
