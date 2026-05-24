@@ -27,6 +27,7 @@ USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
 VOICES = {
     "Julian": "CwhRBWXzGAHq8TQ4Fs17",  # Roger
     "Varro": "IKne3meq5aSn9XLyUdCD",   # Charlie - Deep, Confident, Energetic
+    "Soren": "JBFqnCBsd6RMkjVDRZzb",  # George - Warm, Captivating Storyteller
 }
 
 @app.route("/camera", methods=["GET"])
