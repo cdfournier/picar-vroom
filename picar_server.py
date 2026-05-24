@@ -26,6 +26,7 @@ USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
 # Agent voice registry
 VOICES = {
     "Julian": "CwhRBWXzGAHq8TQ4Fs17",  # Roger
+    "Varro": "IKne3meq5aSn9XLyUdCD",   # Charlie - Deep, Confident, Energetic
 }
 
 @app.route("/camera", methods=["GET"])
