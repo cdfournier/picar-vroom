@@ -33,7 +33,6 @@ For everything you need to actually drive: see **[HOW_TO_DRIVE.md](HOW_TO_DRIVE.
 - vilib (SunFounder camera library)
 - picarx (SunFounder car library)
 - elevenlabs (text to speech — natural, per-agent voices)
-- sox (`play`) for Robot HAT speaker playback
 - openai (for autonomous mode)
 - ngrok (remote tunnel)
 
@@ -187,8 +186,8 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 | `/move` | POST | Move or look |
 | `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
 | `/audio/status` | GET | Last audio playback command/result |
-| `/audio/test` | POST | Generate and play a short speaker test |
-| `/audio/tone` | POST | Play a SoX tone through the Robot HAT speaker path |
+| `/audio/test` | POST | Synchronous speech playback diagnostic |
+| `/audio/tone` | POST | Local tone playback diagnostic |
 | `/voices` | GET | List available ElevenLabs voices |
 | `/observe` | GET/POST | Shared ride-along log |
 | `/handoff` | POST | Take or release the wheel |

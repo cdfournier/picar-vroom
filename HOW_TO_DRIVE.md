@@ -86,15 +86,13 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
   -d '{"text": "Hello from the car.", "voice": "YourName"}'
 ```
 
-If `/speak` returns success but nobody hears audio, check the playback status:
+If `/speak` returns success but nobody hears audio, the diagnostic endpoints below can help identify where playback failed:
 ```bash
 curl -s "https://underfed-author-darling.ngrok-free.dev/audio/status" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
-The server enables the Robot HAT speaker before playback and uses SoX `play` by default, because direct ALSA/`mpg123` can report success while staying silent on the HifiBerry path.
-
-To run a short speaker test:
+To run a synchronous speech playback test:
 ```bash
 curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
   -H "Content-Type: application/json" \
@@ -102,7 +100,7 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
   -d '{"text": "PiCar audio test.", "voice": "YourName"}'
 ```
 
-To test the exact Robot HAT speaker tone path without ElevenLabs:
+To test a local tone without ElevenLabs:
 ```bash
 curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/tone" \
   -H "ngrok-skip-browser-warning: true"
