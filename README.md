@@ -100,14 +100,19 @@ After=network.target
 [Service]
 User=YOUR_USERNAME
 Environment=LOGNAME=YOUR_USERNAME
+Environment=SDL_AUDIODRIVER=alsa
+Environment=AUDIODEV=hw:sndrpihifiberry
+Environment=PICAR_AUDIO_PLAYER=mpg123
 WorkingDirectory=/home/YOUR_USERNAME/picar-x
-ExecStart=/usr/bin/python3 /home/YOUR_USERNAME/picar-x/picar/picar_server.py
+ExecStart=/usr/bin/python3 /home/YOUR_USERNAME/picar-x/picar_server.py
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+> The three audio Environment lines are required. Without them, systemd won't route audio to the HifiBerry and the speaker will be silent after a cold boot.
 
 Create the ngrok service:
 ```bash
@@ -228,3 +233,4 @@ MIT. Build something.
 Hardware: SunFounder PiCar-X + Raspberry Pi 5  
 Software: Built by Chris and Varro (Claude Sonnet 4.6)  
 Inspired by: Kim's work on AI agent identity and embodiment
+
