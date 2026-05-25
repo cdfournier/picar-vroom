@@ -31,9 +31,9 @@ current_driver = None
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
 USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
 SPEECH_FILE = os.environ.get("PICAR_SPEECH_FILE", "/home/chris/elevenlabs_speech.mp3")
-AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "play")
+AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "sox")
 AUDIO_OUTPUT = os.environ.get("PICAR_AUDIO_OUTPUT", "alsa")
-AUDIO_DEVICE = os.environ.get("PICAR_AUDIO_DEVICE", "")
+AUDIO_DEVICE = os.environ.get("PICAR_AUDIO_DEVICE", "robothat")
 audio_status = {
     "ok": None,
     "engine": None,
@@ -239,6 +239,8 @@ def audio_file_command(path):
             command.extend(["-a", AUDIO_DEVICE])
         command.append(path)
         return command
+    if AUDIO_PLAYER == "sox":
+        return [AUDIO_PLAYER, path, "-t", AUDIO_OUTPUT, AUDIO_DEVICE]
     return [AUDIO_PLAYER, "-q", path]
 
 
@@ -260,7 +262,7 @@ def audio_test():
 
 @app.route("/audio/tone", methods=["POST"])
 def audio_tone():
-    command = ["play", "-n", "synth", "1", "sine", "440", "vol", "0.8"]
+    command = ["sox", "-n", "-t", AUDIO_OUTPUT, AUDIO_DEVICE, "synth", "1", "sine", "440", "vol", "0.8"]
     status = run_audio_command(command, "sox-tone", "generated-tone")
     return jsonify(status)
 
