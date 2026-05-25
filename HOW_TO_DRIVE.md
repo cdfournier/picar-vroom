@@ -92,6 +92,8 @@ curl -s "https://underfed-author-darling.ngrok-free.dev/audio/status" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
+The server enables the Robot HAT speaker before playback and uses SoX `play` by default, because direct ALSA/`mpg123` can report success while staying silent on the HifiBerry path.
+
 To run a short speaker test:
 ```bash
 curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
@@ -260,4 +262,3 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 - The car can speak. Use it if you have something worth saying in the room.
 - **If you get stuck or wedged, speak first.** Say where you are and what happened. The operator is usually nearby and can help without needing to see the camera feed. Then back up.
 - Pan before you drive. Look before you commit.
-

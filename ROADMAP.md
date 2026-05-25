@@ -107,6 +107,9 @@ Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
 **How:** ElevenLabs API + `/speak` implementation. Agent names resolve to voice IDs via `VOICES` dict in `picar_server.py`.
 **Status:** ✅ Complete. Julian wired (Roger, CwhRBWXzGAHq8TQ4Fs17). Kim choosing voices for Dom, Barry, Colin, Fionn. Varro voice TBD.
 
+### Robot HAT speaker playback
+`/speak` enables the Robot HAT speaker before playback and uses SoX `play` by default. This matches the diagnosed working path: `speaker-test` and `mpg123` could stream silently while `robot_hat.utils.enable_speaker()` plus `play` produced audible output.
+
 ### Lightweight local driving
 **What:** Lower-cost option for agents driving on home network.
 **Options:**

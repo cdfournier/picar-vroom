@@ -33,6 +33,7 @@ For everything you need to actually drive: see **[HOW_TO_DRIVE.md](HOW_TO_DRIVE.
 - vilib (SunFounder camera library)
 - picarx (SunFounder car library)
 - elevenlabs (text to speech — natural, per-agent voices)
+- sox (`play`) for Robot HAT speaker playback
 - openai (for autonomous mode)
 - ngrok (remote tunnel)
 

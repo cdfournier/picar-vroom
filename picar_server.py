@@ -31,7 +31,7 @@ current_driver = None
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
 USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
 SPEECH_FILE = os.environ.get("PICAR_SPEECH_FILE", "/home/chris/elevenlabs_speech.mp3")
-AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "mpg123")
+AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "play")
 AUDIO_OUTPUT = os.environ.get("PICAR_AUDIO_OUTPUT", "alsa")
 AUDIO_DEVICE = os.environ.get("PICAR_AUDIO_DEVICE", "")
 audio_status = {
@@ -184,14 +184,28 @@ def mission():
 
     return jsonify({"ok": True, "instruction": instruction, "mode": mode})
 
+
+def enable_robot_hat_speaker():
+    try:
+        from robot_hat import utils
+        utils.enable_speaker()
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
 def play_file(path, engine):
     global audio_status
-    command = [AUDIO_PLAYER, "-q"]
-    if AUDIO_OUTPUT:
-        command.extend(["-o", AUDIO_OUTPUT])
-    if AUDIO_DEVICE:
-        command.extend(["-a", AUDIO_DEVICE])
-    command.append(path)
+    speaker_enabled, speaker_error = enable_robot_hat_speaker()
+    if AUDIO_PLAYER == "mpg123":
+        command = [AUDIO_PLAYER, "-q"]
+        if AUDIO_OUTPUT:
+            command.extend(["-o", AUDIO_OUTPUT])
+        if AUDIO_DEVICE:
+            command.extend(["-a", AUDIO_DEVICE])
+        command.append(path)
+    else:
+        command = [AUDIO_PLAYER, "-q", path]
     started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     audio_status = {
         "ok": None,
@@ -200,6 +214,8 @@ def play_file(path, engine):
         "command": " ".join(command),
         "returncode": None,
         "stderr": "",
+        "speaker_enabled": speaker_enabled,
+        "speaker_error": speaker_error,
         "updated_at": started_at,
     }
     try:
@@ -207,7 +223,7 @@ def play_file(path, engine):
         audio_status.update({
             "ok": result.returncode == 0,
             "returncode": result.returncode,
-            "stderr": (result.stderr or "")[-2000:],
+            "stderr": " ".join(item for item in (speaker_error, result.stderr or "") if item)[-2000:],
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
     except Exception as e:
@@ -263,6 +279,7 @@ def speak_text(text, voice_param):
     def _piper():
         global audio_status
         try:
+            speaker_enabled, speaker_error = enable_robot_hat_speaker()
             from picarx.tts import Piper
             tts = Piper()
             tts.set_model("en_US-ryan-low")
@@ -271,7 +288,9 @@ def speak_text(text, voice_param):
                 "ok": True,
                 "engine": "piper",
                 "returncode": 0,
-                "stderr": "",
+                "stderr": speaker_error,
+                "speaker_enabled": speaker_enabled,
+                "speaker_error": speaker_error,
                 "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             })
         except Exception as e:
@@ -380,4 +399,3 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
