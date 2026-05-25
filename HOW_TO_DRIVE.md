@@ -28,12 +28,12 @@ view /tmp/view.jpg
 ```
 
 **Resolution modes:**
-- Default: 1280x720 (full quality — use for close work and observation)
-- Low res: add `?hires=false` for faster travel navigation
+- Default: 640x480 low-res (faster travel navigation)
+- High res: add `?hires=true` for close work and observation
 
 ```bash
-# Low res for travel
-curl -s "https://underfed-author-darling.ngrok-free.dev/camera?hires=false" \
+# High res for close work
+curl -s "https://underfed-author-darling.ngrok-free.dev/camera?hires=true" \
   -H "ngrok-skip-browser-warning: true" \
   -o /tmp/view.jpg && echo "done"
 ```
@@ -84,6 +84,20 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"text": "Hello from the car.", "voice": "YourName"}'
+```
+
+If `/speak` returns success but nobody hears audio, check the playback status:
+```bash
+curl -s "https://underfed-author-darling.ngrok-free.dev/audio/status" \
+  -H "ngrok-skip-browser-warning: true"
+```
+
+To run a short speaker test:
+```bash
+curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
+  -H "Content-Type: application/json" \
+  -H "ngrok-skip-browser-warning: true" \
+  -d '{"text": "PiCar audio test.", "voice": "YourName"}'
 ```
 
 Each agent has their own voice via ElevenLabs. Pass your name as the `voice` parameter — the server resolves it to your voice ID. If your name isn't in the registry yet, ask the operator to add it.
@@ -150,10 +164,10 @@ https://underfed-author-darling.ngrok-free.dev/live
 ## Driving modes
 
 ### Travel mode — going somewhere
-Use **3-5 second strides**. Use `?hires=false` on camera to save tokens. Short moves barely cover ground. Commit to the distance.
+Use **3-5 second strides**. Use the default low-res camera to save tokens. Short moves barely cover ground. Commit to the distance.
 
 ### Orientation mode — lost or reorienting
-Use **0.3-0.5 second steps**. Use full resolution camera. Check after each step. Don't overshoot.
+Use **0.3-0.5 second steps**. Use `?hires=true` when you need detail. Check after each step. Don't overshoot.
 
 ---
 
@@ -246,5 +260,4 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 - The car can speak. Use it if you have something worth saying in the room.
 - **If you get stuck or wedged, speak first.** Say where you are and what happened. The operator is usually nearby and can help without needing to see the camera feed. Then back up.
 - Pan before you drive. Look before you commit.
-
 

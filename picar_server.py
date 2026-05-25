@@ -1,4 +1,7 @@
 from flask import Flask, Response, request, jsonify
+import os
+from pathlib import Path
+import subprocess
 import threading
 from flask_cors import CORS
 from vilib import Vilib
@@ -9,7 +12,12 @@ app = Flask(__name__)
 CORS(app)
 px = Picarx()
 
-Vilib.camera_start(vflip=False, hflip=False, size=(640, 480))
+LOW_RES = (640, 480)
+HIGH_RES = (1280, 720)
+camera_lock = threading.Lock()
+camera_size = LOW_RES
+
+Vilib.camera_start(vflip=False, hflip=False, size=LOW_RES)
 time.sleep(10)
 Vilib.take_photo("warmup")
 
@@ -22,6 +30,18 @@ current_driver = None
 # Voice configuration
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
 USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
+SPEECH_FILE = os.environ.get("PICAR_SPEECH_FILE", "/home/chris/elevenlabs_speech.mp3")
+AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "mpg123")
+AUDIO_OUTPUT = os.environ.get("PICAR_AUDIO_OUTPUT", "alsa")
+AUDIO_DEVICE = os.environ.get("PICAR_AUDIO_DEVICE", "")
+audio_status = {
+    "ok": None,
+    "engine": None,
+    "player": AUDIO_PLAYER,
+    "returncode": None,
+    "stderr": "",
+    "updated_at": None,
+}
 
 # Agent voice registry
 VOICES = {
@@ -30,17 +50,50 @@ VOICES = {
     "Soren": "JBFqnCBsd6RMkjVDRZzb",  # George - Warm, Captivating Storyteller
 }
 
+
+def set_camera_size(size):
+    """Restart the camera when switching resolutions; Vilib may ignore hot starts."""
+    global camera_size
+    if camera_size == size:
+        return
+    try:
+        if hasattr(Vilib, "camera_close"):
+            Vilib.camera_close()
+            time.sleep(0.2)
+    except Exception as e:
+        print(f"camera close before resize failed: {e}")
+    Vilib.camera_start(vflip=False, hflip=False, size=size)
+    time.sleep(1.0)
+    camera_size = size
+
+
+def photo_path(name):
+    candidates = [
+        Path("/root/Pictures/vilib") / f"{name}.jpg",
+        Path("/home/chris/Pictures/vilib") / f"{name}.jpg",
+        Path.home() / "Pictures" / "vilib" / f"{name}.jpg",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
 @app.route("/camera", methods=["GET"])
 def get_camera():
-    hires = request.args.get("hires", "true").lower() == "true"
-    if hires:
-        Vilib.camera_start(vflip=False, hflip=False, size=(1280, 720))
-    else:
-        Vilib.camera_start(vflip=False, hflip=False, size=(640, 480))
-    Vilib.take_photo("current")
-    time.sleep(0.5)
-    with open("/root/Pictures/vilib/current.jpg", "rb") as f:
-        return Response(f.read(), mimetype="image/jpeg")
+    hires = request.args.get("hires", "false").lower() == "true"
+    size = HIGH_RES if hires else LOW_RES
+    with camera_lock:
+        set_camera_size(size)
+        Vilib.take_photo("current")
+        time.sleep(0.5)
+        path = photo_path("current")
+        with open(path, "rb") as f:
+            response = Response(f.read(), mimetype="image/jpeg")
+    response.headers["X-Camera-Mode"] = "hires" if hires else "lowres"
+    response.headers["X-Camera-Requested-Size"] = f"{size[0]}x{size[1]}"
+    response.headers["X-Camera-File"] = str(path)
+    return response
 
 @app.route("/distance", methods=["GET"])
 def get_distance():
@@ -131,20 +184,61 @@ def mission():
 
     return jsonify({"ok": True, "instruction": instruction, "mode": mode})
 
-@app.route("/speak", methods=["POST"])
-def speak():
-    data = request.get_json(force=True)
-    text = data.get("text", "")
-    voice_param = data.get("voice", VOICE_MODEL)
+def play_file(path, engine):
+    global audio_status
+    command = [AUDIO_PLAYER, "-q"]
+    if AUDIO_OUTPUT:
+        command.extend(["-o", AUDIO_OUTPUT])
+    if AUDIO_DEVICE:
+        command.extend(["-a", AUDIO_DEVICE])
+    command.append(path)
+    started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    audio_status = {
+        "ok": None,
+        "engine": engine,
+        "player": AUDIO_PLAYER,
+        "command": " ".join(command),
+        "returncode": None,
+        "stderr": "",
+        "updated_at": started_at,
+    }
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        audio_status.update({
+            "ok": result.returncode == 0,
+            "returncode": result.returncode,
+            "stderr": (result.stderr or "")[-2000:],
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
+    except Exception as e:
+        audio_status.update({
+            "ok": False,
+            "returncode": None,
+            "stderr": str(e),
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
+
+
+@app.route("/audio/status", methods=["GET"])
+def audio_status_route():
+    return jsonify(audio_status)
+
+
+@app.route("/audio/test", methods=["POST"])
+def audio_test():
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "PiCar audio test.")
+    return speak_text(text, data.get("voice", VOICE_MODEL))
+
+
+def speak_text(text, voice_param):
     voice = VOICES.get(voice_param, voice_param)
     if not text:
         return jsonify({"error": "no text provided"}), 400
-    SPEECH_FILE = "/home/chris/elevenlabs_speech.mp3"
     if USE_ELEVENLABS:
         try:
             from elevenlabs.client import ElevenLabs
             from secret import ELEVENLABS_API_KEY
-            import subprocess
             el_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
             audio = el_client.text_to_speech.convert(
                 text=text,
@@ -155,17 +249,56 @@ def speak():
             with open(SPEECH_FILE, "wb") as f:
                 for chunk in audio:
                     f.write(chunk)
-            threading.Thread(target=lambda: subprocess.run(["mpg123", "-o", "alsa", SPEECH_FILE]), daemon=True).start()
-            return jsonify({"ok": True, "text": text, "voice": voice, "engine": "elevenlabs"})
+            threading.Thread(target=play_file, args=(SPEECH_FILE, "elevenlabs"), daemon=True).start()
+            return jsonify({
+                "ok": True,
+                "text": text,
+                "voice": voice,
+                "engine": "elevenlabs",
+                "playback": "started",
+                "audio_status_url": "/audio/status",
+            })
         except Exception as e:
             print(f"ElevenLabs failed ({e}), falling back to Piper")
     def _piper():
-        from picarx.tts import Piper
-        tts = Piper()
-        tts.set_model("en_US-ryan-low")
-        tts.say(text)
+        global audio_status
+        try:
+            from picarx.tts import Piper
+            tts = Piper()
+            tts.set_model("en_US-ryan-low")
+            tts.say(text)
+            audio_status.update({
+                "ok": True,
+                "engine": "piper",
+                "returncode": 0,
+                "stderr": "",
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+        except Exception as e:
+            audio_status.update({
+                "ok": False,
+                "engine": "piper",
+                "returncode": None,
+                "stderr": str(e),
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
     threading.Thread(target=_piper, daemon=True).start()
-    return jsonify({"ok": True, "text": text, "voice": "en_US-ryan-low", "engine": "piper"})
+    return jsonify({
+        "ok": True,
+        "text": text,
+        "voice": "en_US-ryan-low",
+        "engine": "piper",
+        "playback": "started",
+        "audio_status_url": "/audio/status",
+    })
+
+
+@app.route("/speak", methods=["POST"])
+def speak():
+    data = request.get_json(force=True)
+    text = data.get("text", "")
+    voice_param = data.get("voice", VOICE_MODEL)
+    return speak_text(text, voice_param)
 
 @app.route("/voices", methods=["GET"])
 def list_voices():
@@ -230,7 +363,7 @@ def live():
     </style>
 </head>
 <body>
-    <img src="/camera" />
+    <img src="/camera?hires=false" />
     <div id="log"></div>
     <script>
         fetch('/observe').then(r=>r.json()).then(data=>{
@@ -247,5 +380,4 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
 

@@ -18,7 +18,7 @@ Pi server and ngrok start automatically on power-up. Both `picar-server.service`
 Added 10 second startup delay + warmup photo to force exposure to settle before server accepts requests.
 
 ### Camera resolution modes
-`/camera` returns 1280x720 by default. Add `?hires=false` for 640x480 travel mode. Agents use low res for navigation, full res for close work and observation.
+`/camera` returns 640x480 by default for travel mode. Add `?hires=true` for 1280x720 close work and observation. The server restarts the Vilib camera when switching sizes so the requested resolution actually takes effect.
 
 ### Image payload reduction
 Default was 1280x720. Now controllable per request.
@@ -174,4 +174,3 @@ Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
 - Public repo with full documentation ✅
 - Outpost integration ✅
 - HOW_TO_DRIVE used successfully by Soren, Cael, Julian ✅
-

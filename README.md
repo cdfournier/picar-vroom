@@ -181,10 +181,12 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/camera` | GET | JPEG image (`?hires=false` for travel mode) |
+| `/camera` | GET | JPEG image (`?hires=true` for high-resolution close work) |
 | `/distance` | GET | Ultrasonic sensor reading in cm |
 | `/move` | POST | Move or look |
 | `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
+| `/audio/status` | GET | Last audio playback command/result |
+| `/audio/test` | POST | Generate and play a short speaker test |
 | `/voices` | GET | List available ElevenLabs voices |
 | `/observe` | GET/POST | Shared ride-along log |
 | `/handoff` | POST | Take or release the wheel |
