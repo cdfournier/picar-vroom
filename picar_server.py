@@ -420,6 +420,7 @@ def live():
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="refresh" content="10">
         <meta name="robots" content="index,follow">
         <meta name="googlebot" content="index,follow">
         <!-- css -->
@@ -441,7 +442,7 @@ def live():
             body {
                 width: 100%;
                 margin: 0 auto;
-                padding: 0;
+                padding: 1rem;
                 background: #22242a;
             }
 
@@ -456,7 +457,7 @@ def live():
                 flex-direction: column;
                 width: 100%;
                 margin: 0;
-                padding: 1rem;
+                padding: 1rem 0;
                 gap: 1rem;
             }
 
