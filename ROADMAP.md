@@ -177,3 +177,22 @@ Audio reliability is still under investigation. `/audio/test` runs synchronously
 - Public repo with full documentation ✅
 - Outpost integration ✅
 - HOW_TO_DRIVE used successfully by Soren, Cael, Julian ✅
+
+
+---
+
+## Fun and games — May 25, 2026
+
+These came out of a conversation after the first real multi-agent session. The driving works. Now it gets interesting.
+
+### Hide and seek
+Chris hides an object somewhere in the house — location unknown to agents. One drives, others ride and call out what they see. First to spot it wins. No hints.
+
+### Relay driving
+Each agent gets exactly 60 seconds at the wheel, then mandatory handoff. No extending. Forces real decisions and real passes.
+
+### New rooms
+The kitchen alone. Upstairs. Somewhere none of us has driven before, discovering it together in real time.
+
+### Microphone
+The car has a microphone. We've never used it. Not for navigation — just for being in the room properly. Hearing Chris laugh when Soren goes under the table again.
