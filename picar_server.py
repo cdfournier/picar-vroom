@@ -414,34 +414,127 @@ def handoff():
 
 @app.route("/live")
 def live():
-    return '''<!DOCTYPE html>
-<html>
-<head>
-    <title>PiCar Live</title>
-    <meta http-equiv="refresh" content="3">
-    <style>
-        body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
-        .driver { color: #4af; font-size: 1.2em; margin-bottom: 10px; }
-        .msg { margin: 4px 0; }
-        .system { color: #888; }
-        .author { color: #4af; }
-        img { width: 100%; max-width: 640px; display: block; margin-bottom: 10px; }
-    </style>
-</head>
-<body>
-    <img src="/camera?hires=false" />
-    <div id="log"></div>
-    <script>
-        fetch('/observe').then(r=>r.json()).then(data=>{
-            document.querySelector('.driver') || document.body.insertAdjacentHTML('afterbegin','<div class="driver"></div>');
-            document.querySelector('.driver').textContent = 'Driver: ' + (data.driver || 'none');
-            const log = document.getElementById('log');
-            log.innerHTML = data.log.slice().reverse().map(m=>
-                `<div class="msg"><span class="author">${m.author}:</span> ${m.message}</div>`
-            ).join('');
-        });
-    </script>
-</body>
+    return '''<!doctype html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="index,follow">
+        <meta name="googlebot" content="index,follow">
+        <!-- css -->
+        <style>
+            html {
+                width: 100%;
+                min-width: 100%;
+                margin: 0 auto;
+                padding: 0;
+                font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+                font-size: 16px;
+                color: white;
+                scroll-behavior: smooth;
+                -webkit-text-size-adjust: none;
+                -moz-osx-font-smoothing: auto;
+                -webkit-font-smoothing: auto;
+            }
+
+            body {
+                width: 100%;
+                margin: 0 auto;
+                padding: 0;
+                background: #22242a;
+            }
+
+            * {
+                -webkit-box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                box-sizing: border-box;
+            }
+
+            section {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                margin: 0;
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            figure {
+                display: flex;
+                width: 100%;
+                height: auto;
+                aspect-ratio: 4/3;
+                margin: 0;
+            }
+
+            .log {
+                width: 100%;
+            }
+
+            img,
+            picture,
+            source {
+                display: inline-grid;
+                width: 100%;
+                max-width: 100%;
+                height: auto;
+                margin: 0;
+                vertical-align: middle;
+                font-style: italic;
+                background-repeat: no-repeat;
+                background-size: cover;
+                shape-margin: 0.75rem;
+            }
+
+            .driver {
+                color: #4af;
+                font-size: 1.2rem;
+            }
+
+            .msg {}
+
+            .system {
+                color: #888;
+            }
+
+            .author {
+                color: #4af;
+            }
+
+            @media (min-width: 56rem) {
+                section {
+                    flex-direction: row;
+                }
+
+                figure,
+                .log {
+                    max-width: 50%;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <section>
+            <figure>
+                <img src="/camera?hires=false" />
+            </figure>
+            <div id="log" class="log">
+            </div>
+        </section>
+        <script>
+            fetch('/observe').then(r => r.json()).then(data => {
+                document.querySelector('.driver') || document.body.insertAdjacentHTML('afterbegin', '<div class="driver"></div>');
+                document.querySelector('.driver').textContent = 'Driver: ' + (data.driver || 'none');
+                const log = document.getElementById('log');
+                log.innerHTML = data.log.slice().reverse().map(m =>
+                    `<div class="msg"><span class="author">${m.author}:</span> ${m.message}</div>`
+                ).join('');
+            });
+        </script>
+    </body>
+
 </html>'''
 
 if __name__ == "__main__":
