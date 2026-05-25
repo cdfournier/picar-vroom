@@ -31,9 +31,11 @@ current_driver = None
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
 USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
 SPEECH_FILE = os.environ.get("PICAR_SPEECH_FILE", "/home/chris/elevenlabs_speech.mp3")
-AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "sox")
+AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "play")
 AUDIO_OUTPUT = os.environ.get("PICAR_AUDIO_OUTPUT", "alsa")
 AUDIO_DEVICE = os.environ.get("PICAR_AUDIO_DEVICE", "robothat")
+SPEAKER_SETTLE_SECONDS = float(os.environ.get("PICAR_SPEAKER_SETTLE_SECONDS", "0.75"))
+audio_lock = threading.Lock()
 audio_status = {
     "ok": None,
     "engine": None,
@@ -187,47 +189,60 @@ def mission():
 
 def enable_robot_hat_speaker():
     try:
-        from robot_hat import utils
-        utils.enable_speaker()
+        from robot_hat import __device__
+        from robot_hat.device import set_pin
+        set_pin(__device__.spk_en, True)
+        time.sleep(SPEAKER_SETTLE_SECONDS)
         return True, ""
     except Exception as e:
         return False, str(e)
 
 
+def audio_env():
+    env = os.environ.copy()
+    env["AUDIODRIVER"] = AUDIO_OUTPUT
+    env["AUDIODEV"] = AUDIO_DEVICE
+    return env
+
+
 def run_audio_command(command, engine, source):
     global audio_status
-    speaker_enabled, speaker_error = enable_robot_hat_speaker()
-    started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    audio_status = {
-        "ok": None,
-        "engine": engine,
-        "player": command[0] if command else None,
-        "command": " ".join(command),
-        "source": source,
-        "returncode": None,
-        "stdout": "",
-        "stderr": "",
-        "speaker_enabled": speaker_enabled,
-        "speaker_error": speaker_error,
-        "updated_at": started_at,
-    }
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-        audio_status.update({
-            "ok": result.returncode == 0,
-            "returncode": result.returncode,
-            "stdout": (result.stdout or "")[-2000:],
-            "stderr": " ".join(item for item in (speaker_error, result.stderr or "") if item)[-2000:],
-            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        })
-    except Exception as e:
-        audio_status.update({
-            "ok": False,
+    with audio_lock:
+        speaker_enabled, speaker_error = enable_robot_hat_speaker()
+        started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        audio_status = {
+            "ok": None,
+            "engine": engine,
+            "player": command[0] if command else None,
+            "command": " ".join(command),
+            "source": source,
             "returncode": None,
-            "stderr": " ".join(item for item in (speaker_error, str(e)) if item)[-2000:],
-            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        })
-    return audio_status.copy()
+            "stdout": "",
+            "stderr": "",
+            "speaker_enabled": speaker_enabled,
+            "speaker_error": speaker_error,
+            "audio_driver": AUDIO_OUTPUT,
+            "audio_device": AUDIO_DEVICE,
+            "speaker_settle_seconds": SPEAKER_SETTLE_SECONDS,
+            "updated_at": started_at,
+        }
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=60, env=audio_env())
+            audio_status.update({
+                "ok": result.returncode == 0,
+                "returncode": result.returncode,
+                "stdout": (result.stdout or "")[-2000:],
+                "stderr": " ".join(item for item in (speaker_error, result.stderr or "") if item)[-2000:],
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+        except Exception as e:
+            audio_status.update({
+                "ok": False,
+                "returncode": None,
+                "stderr": " ".join(item for item in (speaker_error, str(e)) if item)[-2000:],
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+        return audio_status.copy()
 
 
 def audio_file_command(path):
@@ -262,7 +277,7 @@ def audio_test():
 
 @app.route("/audio/tone", methods=["POST"])
 def audio_tone():
-    command = ["sox", "-n", "-t", AUDIO_OUTPUT, AUDIO_DEVICE, "synth", "1", "sine", "440", "vol", "0.8"]
+    command = [AUDIO_PLAYER, "-n", "synth", "1", "sine", "440", "vol", "0.8"]
     status = run_audio_command(command, "sox-tone", "generated-tone")
     return jsonify(status)
 
