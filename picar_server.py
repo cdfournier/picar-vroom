@@ -194,25 +194,18 @@ def enable_robot_hat_speaker():
         return False, str(e)
 
 
-def play_file(path, engine):
+def run_audio_command(command, engine, source):
     global audio_status
     speaker_enabled, speaker_error = enable_robot_hat_speaker()
-    if AUDIO_PLAYER == "mpg123":
-        command = [AUDIO_PLAYER, "-q"]
-        if AUDIO_OUTPUT:
-            command.extend(["-o", AUDIO_OUTPUT])
-        if AUDIO_DEVICE:
-            command.extend(["-a", AUDIO_DEVICE])
-        command.append(path)
-    else:
-        command = [AUDIO_PLAYER, "-q", path]
     started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     audio_status = {
         "ok": None,
         "engine": engine,
-        "player": AUDIO_PLAYER,
+        "player": command[0] if command else None,
         "command": " ".join(command),
+        "source": source,
         "returncode": None,
+        "stdout": "",
         "stderr": "",
         "speaker_enabled": speaker_enabled,
         "speaker_error": speaker_error,
@@ -223,6 +216,7 @@ def play_file(path, engine):
         audio_status.update({
             "ok": result.returncode == 0,
             "returncode": result.returncode,
+            "stdout": (result.stdout or "")[-2000:],
             "stderr": " ".join(item for item in (speaker_error, result.stderr or "") if item)[-2000:],
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
@@ -230,9 +224,26 @@ def play_file(path, engine):
         audio_status.update({
             "ok": False,
             "returncode": None,
-            "stderr": str(e),
+            "stderr": " ".join(item for item in (speaker_error, str(e)) if item)[-2000:],
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
+    return audio_status.copy()
+
+
+def audio_file_command(path):
+    if AUDIO_PLAYER == "mpg123":
+        command = [AUDIO_PLAYER, "-q"]
+        if AUDIO_OUTPUT:
+            command.extend(["-o", AUDIO_OUTPUT])
+        if AUDIO_DEVICE:
+            command.extend(["-a", AUDIO_DEVICE])
+        command.append(path)
+        return command
+    return [AUDIO_PLAYER, "-q", path]
+
+
+def play_file(path, engine):
+    run_audio_command(audio_file_command(path), engine, path)
 
 
 @app.route("/audio/status", methods=["GET"])
@@ -244,10 +255,17 @@ def audio_status_route():
 def audio_test():
     data = request.get_json(silent=True) or {}
     text = data.get("text", "PiCar audio test.")
-    return speak_text(text, data.get("voice", VOICE_MODEL))
+    return speak_text(text, data.get("voice", VOICE_MODEL), wait=True)
 
 
-def speak_text(text, voice_param):
+@app.route("/audio/tone", methods=["POST"])
+def audio_tone():
+    command = ["play", "-n", "synth", "1", "sine", "440", "vol", "0.8"]
+    status = run_audio_command(command, "sox-tone", "generated-tone")
+    return jsonify(status)
+
+
+def speak_text(text, voice_param, wait=False):
     voice = VOICES.get(voice_param, voice_param)
     if not text:
         return jsonify({"error": "no text provided"}), 400
@@ -265,12 +283,24 @@ def speak_text(text, voice_param):
             with open(SPEECH_FILE, "wb") as f:
                 for chunk in audio:
                     f.write(chunk)
+            file_bytes = os.path.getsize(SPEECH_FILE)
+            if wait:
+                status = run_audio_command(audio_file_command(SPEECH_FILE), "elevenlabs", SPEECH_FILE)
+                status.update({
+                    "text": text,
+                    "voice": voice,
+                    "file": SPEECH_FILE,
+                    "file_bytes": file_bytes,
+                })
+                return jsonify(status)
             threading.Thread(target=play_file, args=(SPEECH_FILE, "elevenlabs"), daemon=True).start()
             return jsonify({
                 "ok": True,
                 "text": text,
                 "voice": voice,
                 "engine": "elevenlabs",
+                "file": SPEECH_FILE,
+                "file_bytes": file_bytes,
                 "playback": "started",
                 "audio_status_url": "/audio/status",
             })

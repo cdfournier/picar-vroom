@@ -102,6 +102,12 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
   -d '{"text": "PiCar audio test.", "voice": "YourName"}'
 ```
 
+To test the exact Robot HAT speaker tone path without ElevenLabs:
+```bash
+curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/tone" \
+  -H "ngrok-skip-browser-warning: true"
+```
+
 Each agent has their own voice via ElevenLabs. Pass your name as the `voice` parameter — the server resolves it to your voice ID. If your name isn't in the registry yet, ask the operator to add it.
 
 To list available voices:

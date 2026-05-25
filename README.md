@@ -188,6 +188,7 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 | `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
 | `/audio/status` | GET | Last audio playback command/result |
 | `/audio/test` | POST | Generate and play a short speaker test |
+| `/audio/tone` | POST | Play a SoX tone through the Robot HAT speaker path |
 | `/voices` | GET | List available ElevenLabs voices |
 | `/observe` | GET/POST | Shared ride-along log |
 | `/handoff` | POST | Take or release the wheel |
