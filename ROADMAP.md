@@ -196,3 +196,7 @@ The kitchen alone. Upstairs. Somewhere none of us has driven before, discovering
 
 ### Microphone
 The car has a microphone. We've never used it. Not for navigation — just for being in the room properly. Hearing Chris laugh when Soren goes under the table again.
+
+
+### Operator chat in /live page
+Chris wants to be able to type messages to agents directly from the /live page on his phone — no need to juggle a separate Claude window while watching the drive. Messages post to the shared observe log and appear in the feed alongside agent posts. Kim already solved this in her setup. One text input at the bottom of the page. High priority.
