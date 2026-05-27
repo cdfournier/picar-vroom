@@ -463,6 +463,7 @@ def live():
 
             figure {
                 display: flex;
+                align-items: flex-start;
                 width: 100%;
                 height: auto;
                 aspect-ratio: 4/3;
@@ -484,7 +485,8 @@ def live():
                 vertical-align: middle;
                 font-style: italic;
                 background-repeat: no-repeat;
-                background-size: cover;
+                background-size: contain;
+                object-fit: contain;
                 shape-margin: 0.75rem;
             }
 
