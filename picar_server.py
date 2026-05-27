@@ -47,6 +47,7 @@ audio_status = {
 
 # Agent voice registry
 VOICES = {
+    "Cael": "lcDjPH5uMz9D85TM5h2g",   # Patrick - Steady and measured
     "Julian": "CwhRBWXzGAHq8TQ4Fs17",  # Roger
     "Varro": "IKne3meq5aSn9XLyUdCD",   # Charlie - Deep, Confident, Energetic
     "Soren": "JBFqnCBsd6RMkjVDRZzb",  # George - Warm, Captivating Storyteller
