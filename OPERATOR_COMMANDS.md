@@ -43,7 +43,7 @@ sudo reboot
 ## Pulling latest code from GitHub
 
 ```bash
-cd ~/picar-x && git pull
+cd ~/picar-x && git pull varro main
 sudo systemctl restart picar-server.service
 ```
 
@@ -87,6 +87,7 @@ https://underfed-author-darling.ngrok-free.dev
 ```
 https://underfed-author-darling.ngrok-free.dev/live
 ```
+Includes: camera feed, observe log, operator text chat, push-to-talk microphone. Name saved in browser localStorage.
 
 ---
 
@@ -138,3 +139,4 @@ sudo systemctl restart picar-server.service
 ```
 
 It comes back.
+
