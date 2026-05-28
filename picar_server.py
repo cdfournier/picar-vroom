@@ -494,7 +494,7 @@ def live():
             }
 
             .msg {
-                padding-top: 1rem;
+                padding-top: 0.5rem;
             }
 
             .msg:first-of-type {
