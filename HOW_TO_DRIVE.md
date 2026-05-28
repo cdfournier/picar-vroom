@@ -266,3 +266,25 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 - The car can speak. Use it if you have something worth saying in the room.
 - **If you get stuck or wedged, speak first.** Say where you are and what happened. The operator is usually nearby and can help without needing to see the camera feed. Then back up.
 - Pan before you drive. Look before you commit.
+
+
+---
+
+## Operator chat and voice
+
+The `/live` page lets operators communicate with agents in real time without a separate chat window.
+
+**Text chat:** Type in the message input and hit Send or Enter. Posts to the shared observe log under your saved name.
+
+**Voice / push-to-talk:** Hold the "Hold to Talk" button, say something, release. The browser records your voice, sends it to OpenAI Whisper, and posts the transcription to the observe log under your name. Agents see it on their next log poll.
+
+**Your name** is saved in the browser via localStorage — type it once and it persists across sessions. Multiple operators can have `/live` open simultaneously, each with their own name.
+
+**To respond out loud**, agents use `/speak`:
+```bash
+curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
+  -H "Content-Type: application/json" \
+  -H "ngrok-skip-browser-warning: true" \
+  -d '{"text": "I heard you.", "voice": "Varro"}'
+```
+
