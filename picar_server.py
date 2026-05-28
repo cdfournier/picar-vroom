@@ -424,7 +424,6 @@ def live():
         <meta http-equiv="refresh" content="10">
         <meta name="robots" content="index,follow">
         <meta name="googlebot" content="index,follow">
-        <!-- css -->
         <style>
             html {
                 width: 100%;
@@ -471,13 +470,14 @@ def live():
                 margin: 0;
             }
 
-            .log {
+            .log-panel {
                 width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
             }
 
-            img,
-            picture,
-            source {
+            img, picture, source {
                 display: block;
                 width: 100%;
                 max-width: 100%;
@@ -489,7 +489,7 @@ def live():
             .driver, .system, .author {
                 font-weight: bold;
             }
-            
+
             .driver, .author {
                 color: #ff4d00;
             }
@@ -497,7 +497,7 @@ def live():
             .msg {
                 padding-top: 1rem;
             }
-            
+
             .msg:first-of-type {
                 padding-top: 0;
             }
@@ -506,13 +506,70 @@ def live():
                 color: #888;
             }
 
+            .chat-form {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 1px solid #222;
+            }
+
+            .chat-name {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.8rem;
+                color: #888;
+            }
+
+            .chat-name input {
+                background: #1a1a1a;
+                color: #ff4d00;
+                border: 1px solid #333;
+                border-radius: 4px;
+                padding: 0.25rem 0.5rem;
+                font-size: 0.8rem;
+                width: 8rem;
+                font-weight: bold;
+            }
+
+            .chat-row {
+                display: flex;
+                gap: 0.5rem;
+            }
+
+            .chat-row input[type="text"] {
+                flex: 1;
+                padding: 0.6rem 0.75rem;
+                background: #1a1a1a;
+                color: white;
+                border: 1px solid #333;
+                border-radius: 4px;
+                font-size: 0.95rem;
+            }
+
+            .chat-row button {
+                padding: 0.6rem 1rem;
+                background: #ff4d00;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 0.95rem;
+                cursor: pointer;
+                font-weight: bold;
+            }
+
+            .chat-row button:active {
+                background: #cc3d00;
+            }
+
             @media (min-width: 56rem) {
                 section {
                     flex-direction: row;
                 }
 
                 figure,
-                .log {
+                .log-panel {
                     max-width: 50%;
                 }
             }
@@ -524,12 +581,48 @@ def live():
             <figure>
                 <img src="/camera?hires=false" />
             </figure>
-            <div id="log" class="log">
+            <div class="log-panel">
+                <div class="chat-form">
+                    <div class="chat-name">
+                        <span>Your name:</span>
+                        <input id="operator-name" type="text" placeholder="e.g. Chris" maxlength="32" />
+                    </div>
+                    <div class="chat-row">
+                        <input id="chat-input" type="text" placeholder="Say something to the car…" />
+                        <button onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+                <div id="log"></div>
             </div>
         </section>
         <script>
+            // Restore saved name from localStorage
+            const nameInput = document.getElementById('operator-name');
+            nameInput.value = localStorage.getItem('picar-operator-name') || '';
+            nameInput.addEventListener('change', function() {
+                localStorage.setItem('picar-operator-name', this.value.trim());
+            });
+
+            // Send message to observe log
+            function sendMessage() {
+                const name = nameInput.value.trim() || 'Operator';
+                const input = document.getElementById('chat-input');
+                const text = input.value.trim();
+                if (!text) return;
+                fetch('/observe', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({author: name, message: text})
+                }).then(() => { input.value = ''; });
+            }
+
+            document.getElementById('chat-input').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
+
+            // Refresh feed
             fetch('/observe').then(r => r.json()).then(data => {
-                document.querySelector('.driver') || document.body.insertAdjacentHTML('afterbegin', '<div class="driver"></div>');
+                document.querySelector('.driver') || document.querySelector('.log-panel').insertAdjacentHTML('afterbegin', '<div class="driver"></div>');
                 document.querySelector('.driver').textContent = 'Driver: ' + (data.driver || 'none');
                 const log = document.getElementById('log');
                 log.innerHTML = data.log.slice().reverse().map(m =>
@@ -543,3 +636,4 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
