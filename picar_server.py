@@ -413,6 +413,33 @@ def handoff():
         current_driver = None
     return jsonify({"ok": True, "driver": current_driver})
 
+@app.route("/listen", methods=["POST"])
+def listen():
+    author = request.form.get("author", "Chris")
+    audio_file = request.files.get("audio")
+    if not audio_file:
+        return jsonify({"ok": False, "error": "no audio provided"}), 400
+    try:
+        audio_path = "/tmp/picar_listen_upload.webm"
+        audio_file.save(audio_path)
+        from openai import OpenAI
+        from openai_secret import OPENAI_API_KEY
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        with open(audio_path, "rb") as f:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=f
+            )
+        text = transcript.text.strip()
+        if text:
+            observe_log.append({"author": author, "message": text})
+            if len(observe_log) > 100:
+                observe_log = observe_log[-100:]
+        return jsonify({"ok": True, "text": text, "author": author})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/live")
 def live():
     return '''<!doctype html>
@@ -505,6 +532,21 @@ def live():
                 color: #888;
             }
 
+            #mic-btn {
+                width: 100%;
+                padding: 0.75rem;
+                background: #ff4d00;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 1rem;
+                cursor: pointer;
+                font-weight: bold;
+                user-select: none;
+                -webkit-user-select: none;
+                margin-top: 0.25rem;
+            }
+
             .chat-form {
                 display: flex;
                 flex-direction: column;
@@ -591,6 +633,9 @@ def live():
                         <input id="chat-input" type="text" placeholder="Say something to the car\u2026" />
                         <button onclick="sendMessage()">Send</button>
                     </div>
+                    <button id="mic-btn" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)" onmousedown="startRecording(event)" onmouseup="stopRecording(event)">
+                        🎤 Hold to Talk
+                    </button>
                 </div>
                 <div id="log"></div>
             </div>
@@ -636,6 +681,53 @@ def live():
             refreshLog();
             setInterval(refreshLog, 5000);
             setInterval(refreshCamera, 5000);
+
+            // Push-to-talk
+            let mediaRecorder = null;
+            let audioChunks = [];
+
+            async function startRecording(e) {
+                e.preventDefault();
+                const btn = document.getElementById('mic-btn');
+                btn.style.background = '#cc0000';
+                btn.textContent = '\u1f3a4 Recording\u2026';
+                audioChunks = [];
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const name = nameInput.value.trim() || 'Operator';
+                        const form = new FormData();
+                        form.append('audio', blob, 'speech.webm');
+                        form.append('author', name);
+                        btn.textContent = '\u1f3a4 Transcribing\u2026';
+                        try {
+                            const res = await fetch('/listen', { method: 'POST', body: form });
+                            const data = await res.json();
+                            console.log('Transcribed:', data.text);
+                        } catch(err) {
+                            console.error('Transcription error:', err);
+                        }
+                        btn.style.background = '#ff4d00';
+                        btn.textContent = '\u1f3a4 Hold to Talk';
+                        stream.getTracks().forEach(t => t.stop());
+                    };
+                    mediaRecorder.start();
+                } catch(err) {
+                    btn.style.background = '#ff4d00';
+                    btn.textContent = '\u1f3a4 Hold to Talk';
+                    console.error('Mic error:', err);
+                }
+            }
+
+            function stopRecording(e) {
+                e.preventDefault();
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }
         </script>
     </body>
 
@@ -644,5 +736,6 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
