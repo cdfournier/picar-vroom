@@ -635,7 +635,7 @@ def live():
                         <button onclick="sendMessage()">Send</button>
                     </div>
                     <button id="mic-btn" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)" onmousedown="startRecording(event)" onmouseup="stopRecording(event)">
-                        🎤 Hold to Talk
+                        Hold to Talk
                     </button>
                 </div>
                 <div id="log"></div>
@@ -691,7 +691,7 @@ def live():
                 e.preventDefault();
                 const btn = document.getElementById('mic-btn');
                 btn.style.background = '#cc0000';
-                btn.textContent = '\u1f3a4 Recording\u2026';
+                btn.textContent = 'Recording...';
                 audioChunks = [];
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -703,7 +703,7 @@ def live():
                         const form = new FormData();
                         form.append('audio', blob, 'speech.webm');
                         form.append('author', name);
-                        btn.textContent = '\u1f3a4 Transcribing\u2026';
+                        btn.textContent = 'Transcribing...';
                         try {
                             const res = await fetch('/listen', { method: 'POST', body: form });
                             const data = await res.json();
@@ -712,13 +712,13 @@ def live():
                             console.error('Transcription error:', err);
                         }
                         btn.style.background = '#ff4d00';
-                        btn.textContent = '\u1f3a4 Hold to Talk';
+                        btn.textContent = 'Hold to Talk';
                         stream.getTracks().forEach(t => t.stop());
                     };
                     mediaRecorder.start();
                 } catch(err) {
                     btn.style.background = '#ff4d00';
-                    btn.textContent = '\u1f3a4 Hold to Talk';
+                    btn.textContent = 'Hold to Talk';
                     console.error('Mic error:', err);
                 }
             }
@@ -737,6 +737,7 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
