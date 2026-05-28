@@ -421,7 +421,6 @@ def live():
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta http-equiv="refresh" content="10">
         <meta name="robots" content="index,follow">
         <meta name="googlebot" content="index,follow">
         <style>
@@ -582,13 +581,14 @@ def live():
                 <img src="/camera?hires=false" />
             </figure>
             <div class="log-panel">
+                <div class="driver">Driver: none</div>
                 <div class="chat-form">
                     <div class="chat-name">
                         <span>Your name:</span>
                         <input id="operator-name" type="text" placeholder="e.g. Chris" maxlength="32" />
                     </div>
                     <div class="chat-row">
-                        <input id="chat-input" type="text" placeholder="Say something to the car…" />
+                        <input id="chat-input" type="text" placeholder="Say something to the car\u2026" />
                         <button onclick="sendMessage()">Send</button>
                     </div>
                 </div>
@@ -596,44 +596,53 @@ def live():
             </div>
         </section>
         <script>
-            // Restore saved name from localStorage
-            const nameInput = document.getElementById('operator-name');
-            nameInput.value = localStorage.getItem('picar-operator-name') || '';
-            nameInput.addEventListener('change', function() {
-                localStorage.setItem('picar-operator-name', this.value.trim());
+            const nameInput = document.getElementById(\'operator-name\');
+            nameInput.value = localStorage.getItem(\'picar-operator-name\') || \'\';
+            nameInput.addEventListener(\'change\', function() {
+                localStorage.setItem(\'picar-operator-name\', this.value.trim());
             });
 
-            // Send message to observe log
             function sendMessage() {
-                const name = nameInput.value.trim() || 'Operator';
-                const input = document.getElementById('chat-input');
+                const name = nameInput.value.trim() || \'Operator\';
+                const input = document.getElementById(\'chat-input\');
                 const text = input.value.trim();
                 if (!text) return;
-                fetch('/observe', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                fetch(\'/observe\', {
+                    method: \'POST\',
+                    headers: {\'Content-Type\': \'application/json\'},
                     body: JSON.stringify({author: name, message: text})
-                }).then(() => { input.value = ''; });
+                }).then(() => { input.value = \'\'; });
             }
 
-            document.getElementById('chat-input').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') sendMessage();
+            document.getElementById(\'chat-input\').addEventListener(\'keydown\', function(e) {
+                if (e.key === \'Enter\') sendMessage();
             });
 
-            // Refresh feed
-            fetch('/observe').then(r => r.json()).then(data => {
-                document.querySelector('.driver') || document.querySelector('.log-panel').insertAdjacentHTML('afterbegin', '<div class="driver"></div>');
-                document.querySelector('.driver').textContent = 'Driver: ' + (data.driver || 'none');
-                const log = document.getElementById('log');
-                log.innerHTML = data.log.slice().reverse().map(m =>
-                    `<div class="msg"><span class="author">${m.author}:</span> ${m.message}</div>`
-                ).join('');
-            });
+            function refreshCamera() {
+                const img = document.querySelector(\'img\');
+                img.src = \'/camera?hires=false&t=\' + Date.now();
+            }
+
+            function refreshLog() {
+                fetch(\'/observe\').then(r => r.json()).then(data => {
+                    document.querySelector(\'.driver\').textContent = \'Driver: \' + (data.driver || \'none\');
+                    const log = document.getElementById(\'log\');
+                    log.innerHTML = data.log.slice().reverse().map(m =>
+                        `<div class="msg"><span class="author">${m.author}:</span> ${m.message}</div>`
+                    ).join(\'\');
+                });
+            }
+
+            refreshLog();
+            setInterval(refreshLog, 5000);
+            setInterval(refreshCamera, 5000);
         </script>
     </body>
 
 </html>'''
 
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
