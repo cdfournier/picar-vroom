@@ -444,7 +444,7 @@ def live():
                 width: 100%;
                 margin: 0 auto;
                 padding: 1rem;
-                background: #22242a;
+                background: #0a0a0a;
             }
 
             * {
@@ -486,19 +486,18 @@ def live():
                 shape-margin: 0.75rem;
             }
 
-            .driver {
-                color: #4af;
-                font-size: 1.2rem;
+            .driver, .system, .author {
+                font-weight: bold;
+            }
+            
+            .driver, .author {
+                color: #ff4d00;
             }
 
             .msg {}
 
             .system {
                 color: #888;
-            }
-
-            .author {
-                color: #4af;
             }
 
             @media (min-width: 56rem) {
