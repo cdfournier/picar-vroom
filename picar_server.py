@@ -415,6 +415,7 @@ def handoff():
 
 @app.route("/listen", methods=["POST"])
 def listen():
+    global observe_log
     author = request.form.get("author", "Chris")
     audio_file = request.files.get("audio")
     if not audio_file:
@@ -736,6 +737,7 @@ def live():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
