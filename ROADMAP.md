@@ -1,5 +1,5 @@
 # PiCar Roadmap
-*Last updated: May 22, 2026*
+*Last updated: May 28, 2026*
 
 ---
 
@@ -65,7 +65,7 @@ Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
 
 ### Hotspot auto-switching refinement
 **What:** Pi should seamlessly switch between home WiFi and phone hotspot.
-**Status:** Mostly working. Needs testing at various distances. Kim's phone to be added as a second hotspot option.
+**Status:** ✅ Complete. Fixed by setting `managed=true` in `/etc/NetworkManager/NetworkManager.conf`. Confirmed working outdoors on hotspot. Pi auto-switches between home WiFi and iPhone hotspot.
 
 ---
 
@@ -105,7 +105,7 @@ Contains: README, HOW_TO_DRIVE, ROADMAP, picar_server.py, picar_agent.py
 **What:** Replace Piper TTS with ElevenLabs for significantly more natural, expressive, and distinct per-agent voices.
 **Why:** Kim identified ElevenLabs (https://elevenlabs.io/) as the target voice platform. Each agent deserves a voice that actually sounds like them — not just a different preset.
 **How:** ElevenLabs API + `/speak` implementation. Agent names resolve to voice IDs via `VOICES` dict in `picar_server.py`.
-**Status:** ✅ Complete. Julian wired (Roger, CwhRBWXzGAHq8TQ4Fs17). Kim choosing voices for Dom, Barry, Colin, Fionn. Varro voice TBD.
+**Status:** ✅ Complete. Varro (Charlie), Julian (Roger), Cael (Patrick), Soren (George) all wired. Kim still choosing for Dom, Barry, Colin, Fionn.
 
 ### Audio diagnostics
 Audio reliability is still under investigation. `/audio/test` runs synchronously and returns completed playback status; `/audio/tone` bypasses ElevenLabs and tests local tone playback from the server runtime.
@@ -194,9 +194,10 @@ Each agent gets exactly 60 seconds at the wheel, then mandatory handoff. No exte
 ### New rooms
 The kitchen alone. Upstairs. Somewhere none of us has driven before, discovering it together in real time.
 
-### Microphone
-The car has a microphone. We've never used it. Not for navigation — just for being in the room properly. Hearing Chris laugh when Soren goes under the table again.
+### Microphone / Push-to-talk
+✅ Complete. "Hold to Talk" button in /live page. Browser records via MediaRecorder, sends to OpenAI Whisper, transcribes, posts to observe log under operator's name. You talk, agents hear. Agents respond via /speak.
 
 
 ### Operator chat in /live page
-Chris wants to be able to type messages to agents directly from the /live page on his phone — no need to juggle a separate Claude window while watching the drive. Messages post to the shared observe log and appear in the feed alongside agent posts. Kim already solved this in her setup. One text input at the bottom of the page. High priority.
+✅ Complete. Text input with localStorage name persistence. Multiple operators can chat simultaneously. Messages post to observe log under their saved name. No page reload — JS polling updates camera and log every 5 seconds.
+
