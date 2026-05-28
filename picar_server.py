@@ -478,16 +478,11 @@ def live():
             img,
             picture,
             source {
-                display: inline-grid;
+                display: block;
                 width: 100%;
                 max-width: 100%;
                 height: auto;
                 margin: 0;
-                vertical-align: middle;
-                font-style: italic;
-                background-repeat: no-repeat;
-                background-size: contain;
-                object-fit: contain;
                 shape-margin: 0.75rem;
             }
 
