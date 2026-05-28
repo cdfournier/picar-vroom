@@ -494,7 +494,13 @@ def live():
                 color: #ff4d00;
             }
 
-            .msg {}
+            .msg {
+                padding-top: 1rem;
+            }
+            
+            .msg:first-of-type {
+                padding-top: 0;
+            }
 
             .system {
                 color: #888;
