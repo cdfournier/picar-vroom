@@ -65,6 +65,8 @@
         <span class="badge driver" id="driver-badge">Driver: none</span>
         <span class="badge ok" id="distance-badge">Distance: --</span>
         <span id="passengers-text" style="color:#888">No passengers</span>
+        <span id="queue-text" style="color:#fa0;font-size:.75rem"></span>
+        <span id="claim-text" style="color:#f44;font-size:.75rem;font-weight:bold"></span>
         <button id="take-wheel-btn" onclick="takeWheel()" style="padding:.15rem .5rem;border-radius:4px;border:1px solid #4af;background:#0d2a45;color:#4af;font-size:.75rem;cursor:pointer;margin-left:auto">Take Wheel</button>
     </div>
     <div id="operator-input">
@@ -159,6 +161,12 @@ function refreshState() {
         }).join("");
     }).catch(() => {});
 
+    fetch("/queue").then(r => r.json()).then(data => {
+        const q = data.queue || [];
+        document.getElementById("queue-text").textContent = q.length > 0 ? "Queue: " + q.map(x => x.name + (x.intention ? " ("+x.intention+")" : "")).join(" → ") : "";
+        const exp = data.claim_expires;
+        document.getElementById("claim-text").textContent = exp ? "⏱ " + exp + "s to claim" : "";
+    }).catch(() => {});
     fetch("/distance").then(r => r.json()).then(data => {
         const d = data.distance;
         const label = d < 0 ? "open" : d + " cm";
