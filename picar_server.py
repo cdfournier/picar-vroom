@@ -248,9 +248,8 @@ def run_audio_command(command, engine, source):
 
 def audio_file_command(path):
     if AUDIO_PLAYER == "mpg123":
-        # No flags -- routing handled by service file environment variables
-        # (SDL_AUDIODRIVER, AUDIODEV, PICAR_AUDIO_PLAYER)
-        return [AUDIO_PLAYER, path]
+        # Use robothat ALSA device directly -- matches pcm.!default in asound.conf
+        return [AUDIO_PLAYER, "-a", "robothat", path]
     if AUDIO_PLAYER == "sox":
         return [AUDIO_PLAYER, path, "-t", AUDIO_OUTPUT, AUDIO_DEVICE]
     return [AUDIO_PLAYER, "-q", path]
