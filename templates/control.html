@@ -8,20 +8,20 @@
         * { margin:0; padding:0; box-sizing:border-box; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
         body { background:#1a1a2e; color:#eee; font-family:-apple-system,system-ui,sans-serif; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
 
-        .header { text-align:center; padding:8px; background:#16213e; display:flex; align-items:center; justify-content:space-between; padding:8px 12px; }
+        .header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#16213e; }
         .header h1 { font-size:16px; letter-spacing:2px; }
         .status { font-size:11px; color:#0f0; }
         .status.offline { color:#f44; }
         .driver-info { font-size:11px; color:#aaa; }
 
-        .camera-area { flex:0 0 auto; text-align:center; padding:6px; position:relative; }
+        .camera-area { flex:0 0 auto; text-align:center; padding:6px; }
         .camera-area img { max-width:100%; max-height:30vh; border-radius:8px; border:2px solid #333; background:#000; display:block; margin:0 auto; }
 
         .controls { flex:1; display:flex; flex-direction:column; justify-content:center; padding:6px 10px; gap:8px; }
 
         .drive-section { display:flex; flex-direction:column; align-items:center; gap:6px; }
         .drive-row { display:flex; gap:6px; }
-        .drive-btn { width:75px; height:54px; border-radius:12px; border:none; font-size:22px; font-weight:bold; background:#0f3460; color:#e94560; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .drive-btn { width:75px; height:54px; border-radius:12px; border:none; font-size:22px; font-weight:bold; background:#0f3460; color:#e94560; display:flex; align-items:center; justify-content:center; cursor:pointer; touch-action:none; }
         .drive-btn:active, .drive-btn.active { background:#e94560; color:#fff; }
         .stop-btn { background:#e94560; color:#fff; font-size:14px; }
         .stop-btn:active { background:#f00; }
@@ -36,8 +36,8 @@
         .speed-section input[type=range] { flex:1; accent-color:#e94560; }
         .speed-val { font-size:13px; font-weight:bold; min-width:24px; text-align:center; }
 
-        .observe-btn { background:#0f3460; color:#4af; border:1px solid #4af; border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer; width:100%; }
-        .observe-btn:active { background:#4af; color:#000; }
+        .wheel-btn { background:#0f3460; color:#4af; border:1px solid #4af; border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer; width:100%; }
+        .wheel-btn:active { background:#4af; color:#000; }
     </style>
 </head>
 <body>
@@ -76,42 +76,42 @@
     <div class="cam-section">
         <button class="cam-btn" id="btn-pan-l">&#9664;</button>
         <button class="cam-btn" id="btn-tilt-u">&#9650;</button>
-        <button class="cam-btn cam-reset" id="btn-cam-reset">&#9673; reset</button>
+        <button class="cam-btn cam-reset" id="btn-cam-reset">&#9673;</button>
         <button class="cam-btn" id="btn-tilt-d">&#9660;</button>
         <button class="cam-btn" id="btn-pan-r">&#9654;</button>
     </div>
 
-    <button class="observe-btn" onclick="takeWheel()">Take Wheel</button>
+    <button class="wheel-btn" id="btn-wheel" onclick="toggleWheel()">Take Wheel</button>
 </div>
 
 <script>
 let speed = 30;
 let camPan = 0, camTilt = 0;
-let driving = false;
-let driveInterval = null;
+let myName = localStorage.getItem('picar-driver-name') || '';
+let hasWheel = false;
 
 document.getElementById('speed').addEventListener('input', e => {
     speed = parseInt(e.target.value);
     document.getElementById('speed-val').textContent = speed;
 });
 
-function api(method, path, body) {
+function api(path, body) {
     return fetch(path, {
-        method,
-        headers: body ? {'Content-Type': 'application/json'} : {},
-        body: body ? JSON.stringify(body) : undefined
-    });
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).catch(() => {});
 }
 
-function drive(angle, direction) {
-    api('POST', '/drive', {angle, direction, speed, duration: 0.4});
+function startDrive(angle, direction) {
+    api('/drive', {angle, direction, speed, continuous: true});
 }
 
 function stopCar() {
-    api('POST', '/stop');
+    api('/stop', {});
 }
 
-// Drive buttons — hold to repeat, release to stop
+// Hold to drive, release to stop
 const driveButtons = [
     {id: 'btn-fwd',   angle: 0,   dir: 'forward'},
     {id: 'btn-back',  angle: 0,   dir: 'backward'},
@@ -121,59 +121,53 @@ const driveButtons = [
 
 driveButtons.forEach(({id, angle, dir}) => {
     const btn = document.getElementById(id);
-    function start(e) {
+    function onStart(e) {
         e.preventDefault();
         btn.classList.add('active');
-        drive(angle, dir);
-        driveInterval = setInterval(() => drive(angle, dir), 350);
+        startDrive(angle, dir);
     }
-    function stop(e) {
+    function onEnd(e) {
         e.preventDefault();
         btn.classList.remove('active');
-        clearInterval(driveInterval);
         stopCar();
     }
-    btn.addEventListener('touchstart', start, {passive: false});
-    btn.addEventListener('touchend', stop, {passive: false});
-    btn.addEventListener('mousedown', start);
-    btn.addEventListener('mouseup', stop);
-    btn.addEventListener('mouseleave', stop);
+    btn.addEventListener('touchstart', onStart, {passive: false});
+    btn.addEventListener('touchend', onEnd, {passive: false});
+    btn.addEventListener('touchcancel', onEnd, {passive: false});
+    btn.addEventListener('mousedown', onStart);
+    btn.addEventListener('mouseup', onEnd);
+    btn.addEventListener('mouseleave', onEnd);
 });
 
 document.getElementById('btn-stop').addEventListener('click', stopCar);
+document.getElementById('btn-stop').addEventListener('touchstart', e => { e.preventDefault(); stopCar(); }, {passive: false});
 
 // Camera controls
-document.getElementById('btn-pan-l').addEventListener('click', () => {
-    camPan = Math.max(-35, camPan - 10);
-    api('POST', '/look', {pan: camPan, tilt: camTilt});
-});
-document.getElementById('btn-pan-r').addEventListener('click', () => {
-    camPan = Math.min(35, camPan + 10);
-    api('POST', '/look', {pan: camPan, tilt: camTilt});
-});
-document.getElementById('btn-tilt-u').addEventListener('click', () => {
-    camTilt = Math.min(20, camTilt + 10);
-    api('POST', '/look', {pan: camPan, tilt: camTilt});
-});
-document.getElementById('btn-tilt-d').addEventListener('click', () => {
-    camTilt = Math.max(-20, camTilt - 10);
-    api('POST', '/look', {pan: camPan, tilt: camTilt});
-});
-document.getElementById('btn-cam-reset').addEventListener('click', () => {
-    camPan = 0; camTilt = 0;
-    api('POST', '/look', {pan: 0, tilt: 0});
-});
+document.getElementById('btn-pan-l').addEventListener('click', () => { camPan = Math.max(-35, camPan - 10); api('/look', {pan: camPan, tilt: camTilt}); });
+document.getElementById('btn-pan-r').addEventListener('click', () => { camPan = Math.min(35, camPan + 10); api('/look', {pan: camPan, tilt: camTilt}); });
+document.getElementById('btn-tilt-u').addEventListener('click', () => { camTilt = Math.min(20, camTilt + 10); api('/look', {pan: camPan, tilt: camTilt}); });
+document.getElementById('btn-tilt-d').addEventListener('click', () => { camTilt = Math.max(-20, camTilt - 10); api('/look', {pan: camPan, tilt: camTilt}); });
+document.getElementById('btn-cam-reset').addEventListener('click', () => { camPan = 0; camTilt = 0; api('/look', {pan: 0, tilt: 0}); });
 
-function takeWheel() {
-    const name = prompt('Your name?') || 'Operator';
-    api('POST', '/handoff', {action: 'take', driver: name});
+function toggleWheel() {
+    if (hasWheel) {
+        api('/handoff', {action: 'release', driver: myName});
+        hasWheel = false;
+        document.getElementById('btn-wheel').textContent = 'Take Wheel';
+    } else {
+        if (!myName) {
+            myName = prompt('Your name?') || 'Operator';
+            localStorage.setItem('picar-driver-name', myName);
+        }
+        api('/handoff', {action: 'take', driver: myName});
+        hasWheel = true;
+        document.getElementById('btn-wheel').textContent = 'Release Wheel';
+    }
 }
 
-// Refresh camera and status
 function refreshCamera() {
-    const img = document.getElementById('cam-img');
     const tImg = new Image();
-    tImg.onload = () => { img.src = tImg.src; document.getElementById('status').textContent = 'live'; document.getElementById('status').className = 'status'; };
+    tImg.onload = () => { document.getElementById('cam-img').src = tImg.src; document.getElementById('status').textContent = 'live'; document.getElementById('status').className = 'status'; };
     tImg.onerror = () => { document.getElementById('status').textContent = 'offline'; document.getElementById('status').className = 'status offline'; };
     tImg.src = '/camera?hires=false&t=' + Date.now();
 }
@@ -181,13 +175,11 @@ function refreshCamera() {
 function refreshState() {
     fetch('/car_state').then(r => r.json()).then(data => {
         document.getElementById('driver-info').textContent = 'Driver: ' + (data.driver || 'none');
-        camPan = data.cam_pan || 0;
-        camTilt = data.cam_tilt || 0;
+        if (!hasWheel) { camPan = data.cam_pan || 0; camTilt = data.cam_tilt || 0; }
     }).catch(() => {});
 }
 
-refreshCamera();
-refreshState();
+refreshCamera(); refreshState();
 setInterval(refreshCamera, 5000);
 setInterval(refreshState, 4000);
 </script>
