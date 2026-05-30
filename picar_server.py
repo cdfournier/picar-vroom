@@ -457,20 +457,89 @@ def observe_post():
             passenger_list.append(author)
     return jsonify({"ok": True})
 
+@app.route("/queue", methods=["GET"])
+def get_queue():
+    global wheel_available_since
+    claim_expires = None
+    if wheel_available_since:
+        elapsed = time.time() - wheel_available_since
+        remaining = max(0, CLAIM_WINDOW_SECONDS - elapsed)
+        if remaining == 0:
+            # Window expired — advance queue
+            advance_queue()
+        else:
+            claim_expires = round(remaining)
+    return jsonify({
+        "driver": current_driver,
+        "queue": driver_queue,
+        "claim_expires": claim_expires
+    })
+
+
+@app.route("/queue", methods=["POST"])
+def update_queue():
+    global driver_queue
+    data = request.get_json(force=True)
+    action = data.get("action", "")
+    name = data.get("name", "").strip()
+    intention = data.get("intention", "").strip()
+
+    if not name:
+        return jsonify({"error": "name required"}), 400
+
+    if action == "join":
+        # Remove if already in queue, then add/update
+        driver_queue = [q for q in driver_queue if q["name"] != name]
+        driver_queue.append({"name": name, "intention": intention, "queued_at": time.time()})
+        observe_log.append({"author": "system", "message": f"{name} joined the queue" + (f": {intention}" if intention else "")})
+    elif action == "leave":
+        driver_queue = [q for q in driver_queue if q["name"] != name]
+        observe_log.append({"author": "system", "message": f"{name} left the queue"})
+
+    return jsonify({"ok": True, "queue": driver_queue})
+
+
+def advance_queue():
+    """Called when claim window expires — skip first in queue."""
+    global driver_queue, wheel_available_since
+    if driver_queue:
+        skipped = driver_queue.pop(0)
+        observe_log.append({"author": "system", "message": f"{skipped['name']} did not claim the wheel in time — skipping"})
+        if driver_queue:
+            # Start new claim window for next in queue
+            wheel_available_since = time.time()
+            next_up = driver_queue[0]
+            observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim"})
+        else:
+            wheel_available_since = None
+    else:
+        wheel_available_since = None
+
+
 @app.route("/handoff", methods=["POST"])
 def handoff():
-    global current_driver, observe_log, passenger_list
+    global current_driver, observe_log, passenger_list, driver_queue, wheel_available_since
     data = request.get_json(force=True)
     action = data.get("action", "")
     driver = data.get("driver", "")
     if action == "take":
         current_driver = driver
+        wheel_available_since = None
+        # Remove from queue if they were waiting
+        driver_queue = [q for q in driver_queue if q["name"] != driver]
         if driver and driver not in passenger_list:
             passenger_list.append(driver)
         observe_log.append({"author": "system", "message": f"{driver} is now driving."})
     elif action == "release":
         observe_log.append({"author": "system", "message": f"{current_driver} has handed off the car."})
         current_driver = None
+        # Start claim window if queue has someone waiting
+        if driver_queue:
+            wheel_available_since = time.time()
+            next_up = driver_queue[0]
+            observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim" + (f" | Intention: {next_up['intention']}" if next_up.get('intention') else "")})
+        else:
+            wheel_available_since = None
     return jsonify({"ok": True, "driver": current_driver})
 
 @app.route("/listen", methods=["POST"])
@@ -798,6 +867,11 @@ def live():
 # In-memory passenger list
 passenger_list = []
 
+# Driver queue: [{name, intention, queued_at}]
+driver_queue = []
+wheel_available_since = None  # timestamp when wheel was released, for claim window
+CLAIM_WINDOW_SECONDS = 30
+
 @app.route("/passengers", methods=["GET"])
 def get_passengers():
     return jsonify({"driver": current_driver, "passengers": passenger_list})
@@ -830,6 +904,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
