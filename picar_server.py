@@ -359,24 +359,28 @@ def speak_text(text, voice_param, wait=False):
 
 @app.route("/drive", methods=["POST"])
 def drive():
-    """Precise drive control: angle, direction, speed, duration."""
-    global cam_pan, cam_tilt
+    """Precise drive control: angle, direction, speed, duration.
+    If continuous=true, starts motors and returns immediately (use /stop to stop).
+    If duration > 0, drives for that duration then stops."""
     data = request.get_json(force=True)
     angle = max(-35, min(35, int(data.get("angle", 0))))
     direction = data.get("direction", "forward")
     speed = max(1, min(50, int(data.get("speed", SPEED))))
-    duration = max(0, min(5.0, float(data.get("duration", 1.0))))
+    duration = max(0, min(5.0, float(data.get("duration", 0))))
+    continuous = data.get("continuous", False)
 
-    px.set_dir_servo_angle(angle + 3)  # +3 is our drift correction offset
+    px.set_dir_servo_angle(angle + 3)  # +3 drift correction
     if direction == "forward":
         px.forward(speed)
     else:
         px.backward(speed)
-    time.sleep(duration)
-    px.stop()
-    px.set_dir_servo_angle(0)
 
-    return jsonify({"ok": True, "angle": angle, "direction": direction, "speed": speed, "duration": duration})
+    if not continuous and duration > 0:
+        time.sleep(duration)
+        px.stop()
+        px.set_dir_servo_angle(0)
+
+    return jsonify({"ok": True, "angle": angle, "direction": direction, "speed": speed, "continuous": continuous})
 
 
 @app.route("/look", methods=["POST"])
