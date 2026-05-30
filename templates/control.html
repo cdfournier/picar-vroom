@@ -88,6 +88,10 @@
 let speed = 30;
 let camPan = 0, camTilt = 0;
 let myName = localStorage.getItem('picar-driver-name') || '';
+if (!myName) {
+    myName = prompt('Your name for this session?') || 'Operator';
+    localStorage.setItem('picar-driver-name', myName);
+}
 let hasWheel = false;
 
 document.getElementById('speed').addEventListener('input', e => {
@@ -153,16 +157,20 @@ function toggleWheel() {
     if (hasWheel) {
         api('/handoff', {action: 'release', driver: myName});
         hasWheel = false;
-        document.getElementById('btn-wheel').textContent = 'Take Wheel';
+        updateWheelBtn();
     } else {
-        if (!myName) {
-            myName = prompt('Your name?') || 'Operator';
-            localStorage.setItem('picar-driver-name', myName);
-        }
         api('/handoff', {action: 'take', driver: myName});
         hasWheel = true;
-        document.getElementById('btn-wheel').textContent = 'Release Wheel';
+        updateWheelBtn();
     }
+}
+
+function updateWheelBtn() {
+    const btn = document.getElementById('btn-wheel');
+    btn.textContent = hasWheel ? 'Release Wheel' : 'Take Wheel';
+    btn.style.background = hasWheel ? '#e94560' : '';
+    btn.style.color = hasWheel ? '#fff' : '';
+    btn.style.borderColor = hasWheel ? '#e94560' : '#4af';
 }
 
 function refreshCamera() {
