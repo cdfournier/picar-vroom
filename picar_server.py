@@ -444,7 +444,7 @@ def observe():
 
 @app.route("/observe", methods=["POST"])
 def observe_post():
-    global observe_log
+    global observe_log, passenger_list
     data = request.get_json(force=True)
     author = data.get("author", "unknown")
     message = data.get("message", "")
@@ -452,6 +452,9 @@ def observe_post():
         observe_log.append({"author": author, "message": message})
         if len(observe_log) > 100:
             observe_log = observe_log[-100:]
+        # Auto-register anyone who posts as a passenger
+        if author and author != "system" and author not in passenger_list:
+            passenger_list.append(author)
     return jsonify({"ok": True})
 
 @app.route("/handoff", methods=["POST"])
@@ -827,6 +830,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
