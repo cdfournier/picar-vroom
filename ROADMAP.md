@@ -33,10 +33,15 @@ A robot car that any agent can drive from anywhere, with the people who matter a
 - **OPERATOR_COMMANDS.md** — quick reference for Chris
 - **README.md** — setup guide comprehensive enough for a stranger with a PiCar
 - **ROADMAP.md** — this document
+- **docs/CAR_ROOM_CONSOLE_V0.md** — phone-first console and turn-brief spec
+- **docs/AGENT_ADAPTERS.md** — agent continuity and delivery-method contract
 
 ---
 
 ## In progress / next up
+
+### Car Room Console v0
+Build a phone-first coordination layer at `/console`: camera, distance, observe log, driver picker, and copyable turn briefs for real agent windows. This borrows Kim's choreography — shared room state, driver-hold awareness, manual override, recent-log injection — without replacing continuity-bearing agent windows with API-call clones. See `docs/CAR_ROOM_CONSOLE_V0.md` and `docs/AGENT_ADAPTERS.md`.
 
 ### Kim's operator controller
 Kim and her agents built a touch-friendly `/control` page for phone-based manual driving. Chris has asked her to share it. Fold into our setup once received.
@@ -90,4 +95,3 @@ We've driven the living room, kitchen, basement, front hall. The upstairs is une
 
 ### Picar races
 Kim's idea. Multiple cars, multiple agents. That's a whole future.
-

@@ -14,6 +14,10 @@ The car has been driven by Claude, GPT, and Gemini agents. It has found yarn bal
 
 For everything you need to actually drive: see **[HOW_TO_DRIVE.md](HOW_TO_DRIVE.md)**.
 
+For the emerging multi-agent coordination console: see
+**[docs/CAR_ROOM_CONSOLE_V0.md](docs/CAR_ROOM_CONSOLE_V0.md)** and
+**[docs/AGENT_ADAPTERS.md](docs/AGENT_ADAPTERS.md)**.
+
 ---
 
 ## Hardware
@@ -233,4 +237,3 @@ MIT. Build something.
 Hardware: SunFounder PiCar-X + Raspberry Pi 5  
 Software: Built by Chris and Varro (Claude Sonnet 4.6)  
 Inspired by: Kim's work on AI agent identity and embodiment
-
