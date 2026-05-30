@@ -65,7 +65,7 @@
         <span class="badge driver" id="driver-badge">Driver: none</span>
         <span class="badge ok" id="distance-badge">Distance: --</span>
         <span id="passengers-text" style="color:#888">No passengers</span>
-        <button onclick="releaseWheel()" style="padding:.15rem .5rem;border-radius:4px;border:1px solid #555;background:#1e1e1e;color:#aaa;font-size:.75rem;cursor:pointer;margin-left:auto">Release Wheel</button>
+        <button id="take-wheel-btn" onclick="takeWheel()" style="padding:.15rem .5rem;border-radius:4px;border:1px solid #4af;background:#0d2a45;color:#4af;font-size:.75rem;cursor:pointer;margin-left:auto">Take Wheel</button>
     </div>
     <div id="operator-input">
         <div class="name-row">
@@ -91,9 +91,45 @@ const nameInput = document.getElementById("operator-name");
 nameInput.value = localStorage.getItem("picar-operator-name") || "";
 nameInput.addEventListener("change", () => localStorage.setItem("picar-operator-name", nameInput.value.trim()));
 
+function takeWheel() {
+    const name = localStorage.getItem("picar-operator-name") || "Operator";
+    if (state.driver && state.driver !== name) {
+        if (!confirm(state.driver + " is driving. Take the wheel?")) return;
+    }
+    if (state.driver === name) {
+        // Already driving — release and open control
+        releaseWheel();
+        return;
+    }
+    fetch("/handoff", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "take", driver: name})})
+    .then(() => {
+        refreshState();
+        window.open("/control?name=" + encodeURIComponent(name), "_blank");
+    });
+}
+
 function releaseWheel() {
     fetch("/handoff", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "release", driver: state.driver || ""})})
     .then(() => refreshState());
+}
+
+function updateWheelBtn() {
+    const name = localStorage.getItem("picar-operator-name") || "Operator";
+    const btn = document.getElementById("take-wheel-btn");
+    if (!btn) return;
+    if (state.driver === name) {
+        btn.textContent = "Release Wheel";
+        btn.style.borderColor = "#e94560";
+        btn.style.background = "#e94560";
+        btn.style.color = "#fff";
+        btn.onclick = releaseWheel;
+    } else {
+        btn.textContent = "Take Wheel";
+        btn.style.borderColor = "#4af";
+        btn.style.background = "#0d2a45";
+        btn.style.color = "#4af";
+        btn.onclick = takeWheel;
+    }
 }
 
 function refreshCamera() {
@@ -115,6 +151,7 @@ function refreshState() {
         state.driver = data.driver;
         state.log = data.log || [];
         document.getElementById("driver-badge").textContent = "Driver: " + (data.driver || "none");
+        updateWheelBtn();
         const entries = document.getElementById("log-entries");
         entries.innerHTML = state.log.slice(-30).reverse().map(m => {
             const cls = m.author === "system" ? "log-system" : "";
@@ -224,4 +261,5 @@ setInterval(refreshState, 4000);
 </script>
 </body>
 </html>
+
 
