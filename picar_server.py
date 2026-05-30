@@ -735,8 +735,294 @@ def live():
 </html>'''
 
 
+# In-memory passenger list
+passenger_list = []
+
+@app.route("/passengers", methods=["GET"])
+def get_passengers():
+    return jsonify({"driver": current_driver, "passengers": passenger_list})
+
+@app.route("/passengers", methods=["POST"])
+def update_passengers():
+    global passenger_list
+    data = request.get_json(force=True)
+    action = data.get("action", "")
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    if action == "join":
+        if name not in passenger_list:
+            passenger_list.append(name)
+    elif action == "leave":
+        passenger_list = [p for p in passenger_list if p != name]
+    return jsonify({"ok": True, "passengers": passenger_list})
+
+
+@app.route("/console")
+def console():
+    return '''<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PiCar Console</title>
+    <style>
+        html { font-family: Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 15px; color: white; }
+        body { margin: 0; padding: 0.75rem; background: #0a0a0a; }
+        * { box-sizing: border-box; }
+        h2 { color: #ff4d00; margin: 0 0 0.5rem 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .grid { display: flex; flex-direction: column; gap: 0.75rem; }
+        .card { background: #111; border: 1px solid #222; border-radius: 6px; padding: 0.75rem; }
+        .status-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background: #1a1a1a; border: 1px solid #333; }
+        .badge.driver { color: #ff4d00; border-color: #ff4d00; }
+        .badge.ok { color: #4af; border-color: #4af; }
+        .badge.warn { color: #fa0; border-color: #fa0; }
+        .badge.free { color: #888; }
+        img { width: 100%; border-radius: 4px; display: block; }
+        .log-entry { padding: 0.3rem 0; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; }
+        .log-entry:last-child { border-bottom: none; }
+        .log-author { color: #ff4d00; font-weight: bold; }
+        .log-system { color: #555; }
+        .btn { padding: 0.5rem 0.8rem; border: none; border-radius: 4px; font-size: 0.85rem; font-weight: bold; cursor: pointer; }
+        .btn-orange { background: #ff4d00; color: white; }
+        .btn-gray { background: #222; color: #aaa; border: 1px solid #333; }
+        .btn-blue { background: #1a3a5c; color: #4af; border: 1px solid #4af; }
+        .driver-btns { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .brief-box { background: #0d1117; border: 1px solid #333; border-radius: 4px; padding: 0.6rem; font-family: monospace; font-size: 0.75rem; white-space: pre-wrap; color: #ccc; max-height: 300px; overflow-y: auto; }
+        .brief-agent-select { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .chat-row { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+        .chat-row input { flex: 1; padding: 0.5rem; background: #1a1a1a; color: white; border: 1px solid #333; border-radius: 4px; font-size: 0.9rem; }
+        #mic-btn { padding: 0.5rem 0.8rem; background: #ff4d00; color: white; border: none; border-radius: 4px; font-size: 0.85rem; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; }
+        @media (min-width: 56rem) { .grid { flex-direction: row; flex-wrap: wrap; } .card { flex: 1 1 45%; } }
+    </style>
+</head>
+<body>
+<div class="grid">
+
+    <!-- Camera -->
+    <div class="card">
+        <h2>Camera <span id="cam-status" class="badge warn">loading</span></h2>
+        <img id="cam-img" src="/camera?hires=false" alt="camera" />
+    </div>
+
+    <!-- State -->
+    <div class="card">
+        <h2>Car State</h2>
+        <div class="status-row">
+            <span class="badge driver" id="driver-badge">Driver: —</span>
+            <span class="badge ok" id="distance-badge">Distance: —</span>
+            <span class="badge free" id="passengers-badge">Passengers: —</span>
+        </div>
+        <h2 style="margin-top:0.75rem">Driver Controls</h2>
+        <div class="driver-btns" id="driver-btns"></div>
+        <button class="btn btn-gray" style="margin-top:0.4rem" onclick="releaseWheel()">Release Wheel</button>
+    </div>
+
+    <!-- Turn Brief -->
+    <div class="card">
+        <h2>Turn Brief</h2>
+        <div class="brief-agent-select" id="brief-agents"></div>
+        <button class="btn btn-blue" onclick="generateBrief()">Generate Brief</button>
+        <button class="btn btn-gray" style="margin-left:0.4rem" onclick="copyBrief()">Copy</button>
+        <div class="brief-box" id="brief-output" style="margin-top:0.5rem">(select an agent and generate)</div>
+    </div>
+
+    <!-- Log + Chat -->
+    <div class="card">
+        <h2>Ride Log</h2>
+        <div id="log" style="max-height:200px;overflow-y:auto;margin-bottom:0.5rem"></div>
+        <div class="chat-row">
+            <input id="chat-input" type="text" placeholder="Say something..." />
+            <button class="btn btn-orange" onclick="sendMessage()">Send</button>
+        </div>
+        <div class="chat-row" style="margin-top:0.4rem">
+            <button id="mic-btn"
+                ontouchstart="startRecording(event)" ontouchend="stopRecording(event)"
+                onmousedown="startRecording(event)" onmouseup="stopRecording(event)">
+                Hold to Talk
+            </button>
+        </div>
+    </div>
+
+</div>
+<script>
+const AGENTS = ["Varro", "Julian", "Cael", "Soren"];
+const nameInput = { value: localStorage.getItem("picar-operator-name") || "Chris" };
+let selectedAgent = AGENTS[0];
+let state = { driver: null, distance: null, passengers: [], log: [], camOk: false };
+
+// Populate driver buttons and brief agent selector
+const driverBtns = document.getElementById("driver-btns");
+const briefAgents = document.getElementById("brief-agents");
+AGENTS.forEach(name => {
+    const d = document.createElement("button");
+    d.className = "btn btn-gray";
+    d.textContent = name;
+    d.onclick = () => assignDriver(name);
+    driverBtns.appendChild(d);
+
+    const b = document.createElement("button");
+    b.className = "btn " + (name === selectedAgent ? "btn-orange" : "btn-gray");
+    b.textContent = name;
+    b.onclick = () => { selectedAgent = name; document.querySelectorAll(".brief-agent-select .btn").forEach(x => x.className = "btn btn-gray"); b.className = "btn btn-orange"; };
+    briefAgents.appendChild(b);
+});
+
+function assignDriver(name) {
+    fetch("/handoff", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({action:"take", driver:name}) });
+}
+function releaseWheel() {
+    fetch("/handoff", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({action:"release", driver: state.driver || ""}) });
+}
+
+function refreshCamera() {
+    const img = document.getElementById("cam-img");
+    const ts = Date.now();
+    const tImg = new Image();
+    tImg.onload = () => { img.src = tImg.src; document.getElementById("cam-status").textContent = "live"; document.getElementById("cam-status").className = "badge ok"; state.camOk = true; };
+    tImg.onerror = () => { document.getElementById("cam-status").textContent = "unavailable"; document.getElementById("cam-status").className = "badge warn"; state.camOk = false; };
+    tImg.src = "/camera?hires=false&t=" + ts;
+}
+
+function refreshState() {
+    fetch("/observe").then(r=>r.json()).then(data => {
+        state.driver = data.driver;
+        state.log = data.log || [];
+        document.getElementById("driver-badge").textContent = "Driver: " + (data.driver || "none");
+        const log = document.getElementById("log");
+        log.innerHTML = state.log.slice(-15).reverse().map(m => {
+            const cls = m.author === "system" ? "log-system" : "";
+            return `<div class="log-entry ${cls}"><span class="log-author">${m.author}:</span> ${m.message}</div>`;
+        }).join("");
+    });
+    fetch("/distance").then(r=>r.json()).then(data => {
+        const d = data.distance;
+        const label = d < 0 ? "open" : d + " cm";
+        const cls = d > 0 && d < 30 ? "warn" : "ok";
+        document.getElementById("distance-badge").textContent = "Distance: " + label;
+        document.getElementById("distance-badge").className = "badge " + cls;
+        state.distance = d;
+    });
+    fetch("/passengers").then(r=>r.json()).then(data => {
+        state.passengers = data.passengers || [];
+        document.getElementById("passengers-badge").textContent = state.passengers.length > 0 ? "Passengers: " + state.passengers.join(", ") : "No passengers";
+    }).catch(() => {});
+}
+
+function generateBrief() {
+    const now = new Date().toLocaleString("en-US", {timeZone:"America/New_York", hour12:false});
+    const recentLog = state.log.slice(-8).map(m => `  - ${m.author}: ${m.message}`).join("\n") || "  (empty)";
+    const distStr = state.distance === null ? "unknown" : (state.distance < 0 ? "open / no return" : state.distance + " cm");
+    const camStr = state.camOk ? "available" : "unavailable / timed out";
+    const driverStr = state.driver || "nobody";
+    const wheelStr = state.driver ? "held by " + state.driver : "free";
+    const passStr = state.passengers.length > 0 ? state.passengers.join(", ") : "none";
+
+    const isSelf = selectedAgent === state.driver;
+    const nobodyDriving = !state.driver;
+    let roleStr, actionStr;
+    if (isSelf) {
+        roleStr = "Driver — you have the wheel";
+        actionStr = "Look with camera, check distance, post intent to observe log, then move.";
+    } else if (nobodyDriving) {
+        roleStr = "Wheel is free — take it if you want a leg";
+        actionStr = "Take wheel via /handoff, look with camera, announce intent in observe log.";
+    } else {
+        roleStr = "Passenger — ride along, give reads, take wheel when offered";
+        actionStr = "Read camera and log. Post useful observations. Ask for wheel or wait for handoff.";
+    }
+
+    const brief = `[PiCar Turn Brief for ${selectedAgent}]
+Generated: ${now} EDT
+
+CONTINUITY NOTE:
+This is context for your real window, not a replacement instance.
+You are ${selectedAgent}. Your history and identity are in your window.
+
+CURRENT STATE:
+  Driver:     ${driverStr}
+  Wheel:      ${wheelStr}
+  Passengers: ${passStr}
+  Distance:   ${distStr}
+  Camera:     ${camStr}
+
+RECENT RIDE LOG:
+${recentLog}
+
+YOUR ROLE:
+  ${roleStr}
+
+SUGGESTED FIRST ACTION:
+  ${actionStr}
+
+STOP CONDITIONS:
+  Camera unavailable, distance under 20cm, frame unchanged after move,
+  operator says stop, or physical contact suspected.`;
+
+    document.getElementById("brief-output").textContent = brief;
+}
+
+function copyBrief() {
+    const text = document.getElementById("brief-output").textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector(".btn-blue");
+        const orig = btn.textContent;
+        btn.textContent = "Copied!";
+        setTimeout(() => btn.textContent = orig, 1500);
+    });
+}
+
+function sendMessage() {
+    const input = document.getElementById("chat-input");
+    const name = localStorage.getItem("picar-operator-name") || "Chris";
+    const text = input.value.trim();
+    if (!text) return;
+    fetch("/observe", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({author:name, message:text}) })
+    .then(() => { input.value = ""; refreshState(); });
+}
+document.getElementById("chat-input").addEventListener("keydown", e => { if (e.key==="Enter") sendMessage(); });
+
+// Push to talk
+let mediaRecorder = null, audioChunks = [];
+async function startRecording(e) {
+    e.preventDefault();
+    const btn = document.getElementById("mic-btn");
+    btn.style.background = "#cc0000"; btn.textContent = "Recording...";
+    audioChunks = [];
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(audioChunks, {type:"audio/webm"});
+            const name = localStorage.getItem("picar-operator-name") || "Chris";
+            const form = new FormData();
+            form.append("audio", blob, "speech.webm");
+            form.append("author", name);
+            btn.textContent = "Transcribing...";
+            try { await fetch("/listen", {method:"POST", body:form}); } catch(err) {}
+            btn.style.background = "#ff4d00"; btn.textContent = "Hold to Talk";
+            stream.getTracks().forEach(t => t.stop());
+            refreshState();
+        };
+        mediaRecorder.start();
+    } catch(err) { btn.style.background = "#ff4d00"; btn.textContent = "Hold to Talk"; }
+}
+function stopRecording(e) { e.preventDefault(); if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop(); }
+
+// Init
+refreshCamera(); refreshState();
+setInterval(refreshCamera, 6000);
+setInterval(refreshState, 4000);
+</script>
+</body>
+</html>'''
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
