@@ -26,6 +26,8 @@ mission_log = []
 current_mission = None
 observe_log = []
 current_driver = None
+cam_pan = 0
+cam_tilt = 0
 
 # Voice configuration
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
@@ -352,6 +354,60 @@ def speak_text(text, voice_param, wait=False):
         "engine": "piper",
         "playback": "started",
         "audio_status_url": "/audio/status",
+    })
+
+
+@app.route("/drive", methods=["POST"])
+def drive():
+    """Precise drive control: angle, direction, speed, duration."""
+    global cam_pan, cam_tilt
+    data = request.get_json(force=True)
+    angle = max(-35, min(35, int(data.get("angle", 0))))
+    direction = data.get("direction", "forward")
+    speed = max(1, min(50, int(data.get("speed", SPEED))))
+    duration = max(0, min(5.0, float(data.get("duration", 1.0))))
+
+    px.set_dir_servo_angle(angle + 3)  # +3 is our drift correction offset
+    if direction == "forward":
+        px.forward(speed)
+    else:
+        px.backward(speed)
+    time.sleep(duration)
+    px.stop()
+    px.set_dir_servo_angle(0)
+
+    return jsonify({"ok": True, "angle": angle, "direction": direction, "speed": speed, "duration": duration})
+
+
+@app.route("/look", methods=["POST"])
+def look():
+    """Absolute camera positioning: pan and tilt in degrees."""
+    global cam_pan, cam_tilt
+    data = request.get_json(force=True)
+    pan = max(-35, min(35, int(data.get("pan", 0))))
+    tilt = max(-20, min(20, int(data.get("tilt", 0))))
+    cam_pan = pan
+    cam_tilt = tilt
+    px.set_cam_pan_angle(pan)
+    px.set_cam_tilt_angle(tilt)
+    return jsonify({"ok": True, "pan": pan, "tilt": tilt})
+
+
+@app.route("/stop", methods=["POST"])
+def stop():
+    """Emergency stop."""
+    px.stop()
+    px.set_dir_servo_angle(0)
+    return jsonify({"ok": True})
+
+
+@app.route("/car_state", methods=["GET"])
+def car_state():
+    """Current car state for the control page."""
+    return jsonify({
+        "driver": current_driver,
+        "cam_pan": cam_pan,
+        "cam_tilt": cam_tilt,
     })
 
 
@@ -755,6 +811,11 @@ def update_passengers():
     return jsonify({"ok": True, "passengers": passenger_list})
 
 
+@app.route("/control")
+def control():
+    return render_template("control.html")
+
+
 @app.route("/console")
 def console():
     return render_template("console.html")
@@ -762,6 +823,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
