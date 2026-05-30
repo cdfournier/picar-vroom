@@ -176,6 +176,14 @@ function refreshState() {
     fetch('/car_state').then(r => r.json()).then(data => {
         document.getElementById('driver-info').textContent = 'Driver: ' + (data.driver || 'none');
         if (!hasWheel) { camPan = data.cam_pan || 0; camTilt = data.cam_tilt || 0; }
+        // Sync wheel state with server
+        const iAmDriver = myName && data.driver === myName;
+        if (iAmDriver !== hasWheel) {
+            hasWheel = iAmDriver;
+            document.getElementById('btn-wheel').textContent = hasWheel ? 'Release Wheel' : 'Take Wheel';
+            document.getElementById('btn-wheel').style.background = hasWheel ? '#e94560' : '';
+            document.getElementById('btn-wheel').style.color = hasWheel ? '#fff' : '';
+        }
     }).catch(() => {});
 }
 
