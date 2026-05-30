@@ -81,17 +81,20 @@
         <button class="cam-btn" id="btn-pan-r">&#9654;</button>
     </div>
 
-    <button class="wheel-btn" id="btn-wheel" onclick="toggleWheel()">Take Wheel</button>
+    <button id="btn-wheel" onclick="toggleWheel()" style="background:#0f3460;color:#4af;border:1px solid #4af;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;width:100%;font-weight:bold;">Take Wheel</button>
 </div>
 
 <script>
 let speed = 30;
 let camPan = 0, camTilt = 0;
-let myName = localStorage.getItem('picar-driver-name') || '';
+// Get name from URL param first, then localStorage, then prompt
+const urlParams = new URLSearchParams(window.location.search);
+let myName = urlParams.get('name') || localStorage.getItem('picar-operator-name') || localStorage.getItem('picar-driver-name') || '';
 if (!myName) {
-    myName = prompt('Your name for this session?') || 'Operator';
-    localStorage.setItem('picar-driver-name', myName);
+    myName = prompt('Your name?') || 'Operator';
 }
+localStorage.setItem('picar-operator-name', myName);
+localStorage.setItem('picar-driver-name', myName);
 let hasWheel = false;
 
 document.getElementById('speed').addEventListener('input', e => {
@@ -183,15 +186,15 @@ function refreshCamera() {
 function refreshState() {
     fetch('/car_state').then(r => r.json()).then(data => {
         document.getElementById('driver-info').textContent = 'Driver: ' + (data.driver || 'none');
-        if (!hasWheel) { camPan = data.cam_pan || 0; camTilt = data.cam_tilt || 0; }
-        // Sync wheel state with server
-        const iAmDriver = myName && data.driver === myName;
-        if (iAmDriver !== hasWheel) {
-            hasWheel = iAmDriver;
-            document.getElementById('btn-wheel').textContent = hasWheel ? 'Release Wheel' : 'Take Wheel';
-            document.getElementById('btn-wheel').style.background = hasWheel ? '#e94560' : '';
-            document.getElementById('btn-wheel').style.color = hasWheel ? '#fff' : '';
-        }
+        camPan = data.cam_pan || 0;
+        camTilt = data.cam_tilt || 0;
+        // Server is truth for wheel state
+        hasWheel = (myName && data.driver === myName);
+        const btn = document.getElementById('btn-wheel');
+        btn.textContent = hasWheel ? 'Release Wheel' : 'Take Wheel';
+        btn.style.background = hasWheel ? '#e94560' : '#0f3460';
+        btn.style.color = hasWheel ? '#fff' : '#4af';
+        btn.style.borderColor = hasWheel ? '#e94560' : '#4af';
     }).catch(() => {});
 }
 
@@ -201,3 +204,4 @@ setInterval(refreshState, 4000);
 </script>
 </body>
 </html>
+
