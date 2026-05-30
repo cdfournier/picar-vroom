@@ -91,6 +91,11 @@ const nameInput = document.getElementById("operator-name");
 nameInput.value = localStorage.getItem("picar-operator-name") || "";
 nameInput.addEventListener("change", () => localStorage.setItem("picar-operator-name", nameInput.value.trim()));
 
+function releaseWheel() {
+    fetch("/handoff", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "release", driver: state.driver || ""})})
+    .then(() => refreshState());
+}
+
 function refreshCamera() {
     const tImg = new Image();
     tImg.onload = () => {
