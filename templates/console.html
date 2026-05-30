@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PiCar Console</title>
+    <style>
+        html{font-family:Roboto,sans-serif;font-size:15px;color:white;-webkit-text-size-adjust:none;}
+        body{margin:0;padding:.75rem;background:#0a0a0a;}
+        *{box-sizing:border-box;}
+        h2{color:#ff4d00;margin:0 0 .5rem 0;font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;font-weight:bold;}
+        .top{display:flex;flex-direction:column;gap:.75rem;margin-bottom:.75rem;}
+        .card{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:.75rem;}
+        .bottom{display:flex;flex-direction:column;gap:.75rem;}
+        img{width:100%;border-radius:4px;display:block;}
+        .badge{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.78rem;font-weight:bold;background:#1a1a1a;border:1px solid #333;margin-right:.3rem;margin-bottom:.3rem;}
+        .badge.driver{color:#ff4d00;border-color:#ff4d00;}
+        .badge.ok{color:#4af;border-color:#4af;}
+        .badge.warn{color:#fa0;border-color:#fa0;}
+        .log-entries{max-height:220px;overflow-y:auto;}
+        .log-entry{padding:.25rem 0;border-bottom:1px solid #1a1a1a;font-size:.82rem;line-height:1.4;}
+        .log-entry:last-child{border-bottom:none;}
+        .log-author{color:#ff4d00;font-weight:bold;}
+        .log-system{color:#444;font-size:.75rem;}
+        .operator-input{display:flex;flex-direction:column;gap:.4rem;padding-bottom:.5rem;border-bottom:1px solid #1e1e1e;margin-bottom:.5rem;}
+        .name-row{display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:#888;}
+        .name-row input{background:#1a1a1a;color:#ff4d00;border:1px solid #333;border-radius:4px;padding:.2rem .5rem;font-size:.78rem;width:7rem;font-weight:bold;}
+        .msg-row{display:flex;gap:.4rem;}
+        .msg-row input{flex:1;padding:.5rem .6rem;background:#1a1a1a;color:white;border:1px solid #333;border-radius:4px;font-size:.85rem;}
+        .btn{padding:.45rem .75rem;border:none;border-radius:4px;font-size:.82rem;font-weight:bold;cursor:pointer;}
+        .btn-orange{background:#ff4d00;color:white;}
+        .btn-gray{background:#1e1e1e;color:#aaa;border:1px solid #333;}
+        .btn-blue{background:#0d2a45;color:#4af;border:1px solid #4af;}
+        #mic-btn{padding:.45rem .75rem;background:#ff4d00;color:white;border:none;border-radius:4px;font-size:.82rem;font-weight:bold;cursor:pointer;user-select:none;-webkit-user-select:none;}
+        .driver-btns{display:flex;gap:.35rem;flex-wrap:wrap;}
+        .brief-box{background:#0d1117;border:1px solid #333;border-radius:4px;padding:.6rem;font-family:monospace;font-size:.72rem;white-space:pre-wrap;color:#ccc;max-height:260px;overflow-y:auto;margin-top:.5rem;}
+        .row{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem;}
+        @media(min-width:700px){
+            .top{flex-direction:row;align-items:flex-start;}
+            .top .card:first-child{flex:1.3;}
+            .top .card:last-child{flex:1;min-width:280px;}
+            .log-entries{max-height:400px;}
+        }
+    </style>
+</head>
+<body>
+
+<div class="top">
+    <div class="card">
+        <h2>Camera <span id="cam-status" class="badge warn">loading</span></h2>
+        <img id="cam-img" src="/camera?hires=false" alt="camera" />
+    </div>
+    <div class="card">
+        <h2>Ride Log</h2>
+        <div class="operator-input">
+            <div class="name-row">
+                <span>Name:</span>
+                <input id="operator-name" type="text" placeholder="Your name" maxlength="32" />
+            </div>
+            <div class="msg-row">
+                <input id="chat-input" type="text" placeholder="Say something to the car..." />
+                <button class="btn btn-orange" onclick="sendMessage()">Send</button>
+            </div>
+            <div>
+                <button id="mic-btn"
+                    ontouchstart="startRecording(event)" ontouchend="stopRecording(event)"
+                    onmousedown="startRecording(event)" onmouseup="stopRecording(event)">
+                    Hold to Talk
+                </button>
+            </div>
+        </div>
+        <div class="log-entries" id="log"></div>
+    </div>
+</div>
+
+<div class="bottom">
+    <div class="card">
+        <h2>Car State</h2>
+        <div class="row">
+            <span class="badge driver" id="driver-badge">Driver: none</span>
+            <span class="badge ok" id="distance-badge">Distance: --</span>
+        </div>
+        <div id="passengers-row" style="color:#888;font-size:.8rem;margin-bottom:.5rem">No passengers</div>
+        <h2>Driver Controls</h2>
+        <div class="driver-btns" id="driver-btns"></div>
+        <button class="btn btn-gray" style="margin-top:.4rem" onclick="releaseWheel()">Release Wheel</button>
+    </div>
+    <div class="card">
+        <h2>Turn Brief</h2>
+        <div class="row" id="brief-agents"></div>
+        <div class="row">
+            <button class="btn btn-blue" onclick="generateBrief()">Generate</button>
+            <button class="btn btn-gray" onclick="copyBrief()">Copy</button>
+        </div>
+        <div class="brief-box" id="brief-output">(select agent and generate)</div>
+    </div>
+</div>
+
+<script>
+const AGENTS = ["Varro", "Julian", "Cael", "Soren"];
+let selectedAgent = AGENTS[0];
+let state = {driver: null, distance: null, passengers: [], log: [], camOk: false};
+
+const nameInput = document.getElementById("operator-name");
+nameInput.value = localStorage.getItem("picar-operator-name") || "";
+nameInput.addEventListener("change", () => localStorage.setItem("picar-operator-name", nameInput.value.trim()));
+
+const driverBtns = document.getElementById("driver-btns");
+const briefAgents = document.getElementById("brief-agents");
+
+AGENTS.forEach(name => {
+    const d = document.createElement("button");
+    d.className = "btn btn-gray";
+    d.textContent = name;
+    d.onclick = () => assignDriver(name);
+    driverBtns.appendChild(d);
+
+    const b = document.createElement("button");
+    b.className = "btn " + (name === selectedAgent ? "btn-orange" : "btn-gray");
+    b.textContent = name;
+    b.onclick = () => {
+        selectedAgent = name;
+        document.querySelectorAll("#brief-agents .btn").forEach(x => x.className = "btn btn-gray");
+        b.className = "btn btn-orange";
+    };
+    briefAgents.appendChild(b);
+});
+
+function assignDriver(n) {
+    fetch("/handoff", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "take", driver: n})})
+    .then(() => refreshState());
+}
+
+function releaseWheel() {
+    fetch("/handoff", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "release", driver: state.driver || ""})})
+    .then(() => refreshState());
+}
+
+function refreshCamera() {
+    const tImg = new Image();
+    tImg.onload = () => {
+        document.getElementById("cam-img").src = tImg.src;
+        document.getElementById("cam-status").textContent = "live";
+        document.getElementById("cam-status").className = "badge ok";
+        state.camOk = true;
+    };
+    tImg.onerror = () => {
+        document.getElementById("cam-status").textContent = "unavail";
+        document.getElementById("cam-status").className = "badge warn";
+        state.camOk = false;
+    };
+    tImg.src = "/camera?hires=false&t=" + Date.now();
+}
+
+function refreshState() {
+    fetch("/observe").then(r => r.json()).then(data => {
+        state.driver = data.driver;
+        state.log = data.log || [];
+        document.getElementById("driver-badge").textContent = "Driver: " + (data.driver || "none");
+        document.getElementById("log").innerHTML = state.log.slice(-20).reverse().map(m => {
+            const cls = m.author === "system" ? "log-system" : "";
+            return '<div class="log-entry ' + cls + '"><span class="log-author">' + m.author + ':</span> ' + m.message + '</div>';
+        }).join("");
+    }).catch(() => {});
+
+    fetch("/distance").then(r => r.json()).then(data => {
+        const d = data.distance;
+        const label = d < 0 ? "open" : d + " cm";
+        const cls = d > 0 && d < 30 ? "warn" : "ok";
+        document.getElementById("distance-badge").textContent = "Distance: " + label;
+        document.getElementById("distance-badge").className = "badge " + cls;
+        state.distance = d;
+    }).catch(() => {});
+
+    fetch("/passengers").then(r => r.json()).then(data => {
+        state.passengers = data.passengers || [];
+        document.getElementById("passengers-row").textContent = state.passengers.length > 0 ? "In the car: " + state.passengers.join(", ") : "No passengers";
+    }).catch(() => {});
+}
+
+function generateBrief() {
+    const now = new Date().toLocaleString("en-US", {timeZone: "America/New_York", hour12: false});
+    const recentLog = state.log.slice(-8).map(m => "  - " + m.author + ": " + m.message).join("\n") || "  (empty)";
+    const distStr = state.distance === null ? "unknown" : (state.distance < 0 ? "open / no return" : state.distance + " cm");
+    const camStr = state.camOk ? "available" : "unavailable / timed out";
+    const driverStr = state.driver || "nobody";
+    const wheelStr = state.driver ? "held by " + state.driver : "free";
+    const passStr = state.passengers.length > 0 ? state.passengers.join(", ") : "none";
+    const isSelf = selectedAgent === state.driver;
+    const nobodyDriving = !state.driver;
+    let roleStr, actionStr;
+    if (isSelf) {
+        roleStr = "Driver -- you have the wheel";
+        actionStr = "Look with camera, check distance, post to observe log, then move.";
+    } else if (nobodyDriving) {
+        roleStr = "Wheel is free -- take it if you want a leg";
+        actionStr = "Take wheel via /handoff, look with camera, announce in observe log.";
+    } else {
+        roleStr = "Passenger -- ride along, give reads, take wheel when offered";
+        actionStr = "Read camera and log. Post useful observations. Ask for wheel or wait for handoff.";
+    }
+
+    const lines = [
+        "[PiCar Turn Brief for " + selectedAgent + "]",
+        "Generated: " + now + " EDT",
+        "",
+        "CONTINUITY NOTE:",
+        "  This is context for your real window, not a replacement instance.",
+        "  You are " + selectedAgent + ". Your history and identity are in your window.",
+        "",
+        "CURRENT STATE:",
+        "  Driver:     " + driverStr,
+        "  Wheel:      " + wheelStr,
+        "  Passengers: " + passStr,
+        "  Distance:   " + distStr,
+        "  Camera:     " + camStr,
+        "",
+        "RECENT RIDE LOG:",
+        recentLog,
+        "",
+        "YOUR ROLE:",
+        "  " + roleStr,
+        "",
+        "SUGGESTED FIRST ACTION:",
+        "  " + actionStr,
+        "",
+        "STOP CONDITIONS:",
+        "  Camera unavailable, distance under 20cm, frame unchanged after move,",
+        "  operator says stop, or physical contact suspected.",
+        "",
+        "STAY IN THE CAR:",
+        "  Keep going until you decide you are done. Do not wait to be prompted again.",
+        "  Look around. Drive. Talk to your brothers in the observe log. Talk to Chris.",
+        "  Use your voice -- speak out loud through the car speaker.",
+        "  Have fun. This is not a navigation problem. It is a shared experience.",
+        "  When you are ready to leave, release the wheel and say goodbye."
+    ];
+    document.getElementById("brief-output").textContent = lines.join("\n");
+}
+
+function copyBrief() {
+    navigator.clipboard.writeText(document.getElementById("brief-output").textContent).then(() => {
+        const btn = document.querySelector(".btn-blue");
+        const orig = btn.textContent;
+        btn.textContent = "Copied!";
+        setTimeout(() => btn.textContent = orig, 1500);
+    });
+}
+
+function sendMessage() {
+    const name = nameInput.value.trim() || "Operator";
+    const input = document.getElementById("chat-input");
+    const text = input.value.trim();
+    if (!text) return;
+    fetch("/observe", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({author: name, message: text})})
+    .then(() => { input.value = ""; refreshState(); });
+}
+document.getElementById("chat-input").addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+
+let mediaRecorder = null, audioChunks = [];
+async function startRecording(e) {
+    e.preventDefault();
+    const btn = document.getElementById("mic-btn");
+    btn.style.background = "#cc0000";
+    btn.textContent = "Recording...";
+    audioChunks = [];
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(audioChunks, {type: "audio/webm"});
+            const name = nameInput.value.trim() || "Operator";
+            const form = new FormData();
+            form.append("audio", blob, "speech.webm");
+            form.append("author", name);
+            btn.textContent = "Transcribing...";
+            try { await fetch("/listen", {method: "POST", body: form}); } catch(err) {}
+            btn.style.background = "#ff4d00";
+            btn.textContent = "Hold to Talk";
+            stream.getTracks().forEach(t => t.stop());
+            refreshState();
+        };
+        mediaRecorder.start();
+    } catch(err) {
+        btn.style.background = "#ff4d00";
+        btn.textContent = "Hold to Talk";
+    }
+}
+function stopRecording(e) {
+    e.preventDefault();
+    if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+}
+
+refreshCamera();
+refreshState();
+setInterval(refreshCamera, 6000);
+setInterval(refreshState, 4000);
+</script>
+</body>
+</html>
