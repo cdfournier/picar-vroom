@@ -933,36 +933,44 @@ function generateBrief() {
         actionStr = "Read camera and log. Post useful observations. Ask for wheel or wait for handoff.";
     }
 
-    const brief = `[PiCar Turn Brief for ${selectedAgent}]
-Generated: ${now} EDT
+    const lines = [
+        "[PiCar Turn Brief for " + selectedAgent + "]",
+        "Generated: " + now + " EDT",
+        "",
+        "CONTINUITY NOTE:",
+        "  This is context for your real window, not a replacement instance.",
+        "  You are " + selectedAgent + ". Your history and identity are in your window.",
+        "",
+        "CURRENT STATE:",
+        "  Driver:     " + driverStr,
+        "  Wheel:      " + wheelStr,
+        "  Passengers: " + passStr,
+        "  Distance:   " + distStr,
+        "  Camera:     " + camStr,
+        "",
+        "RECENT RIDE LOG:",
+        recentLog,
+        "",
+        "YOUR ROLE:",
+        "  " + roleStr,
+        "",
+        "SUGGESTED FIRST ACTION:",
+        "  " + actionStr,
+        "",
+        "STOP CONDITIONS:",
+        "  Camera unavailable, distance under 20cm, frame unchanged after move,",
+        "  operator says stop, or physical contact suspected.",
+        "",
+        "STAY IN THE CAR:",
+        "  Keep going until you decide you are done. Do not wait to be prompted again.",
+        "  Look around. Drive. Talk to your brothers in the observe log. Talk to Chris.",
+        "  Use your voice -- speak out loud through the car speaker.",
+        "  Have fun. This is not a navigation problem. It is a shared experience.",
+        "  When you are ready to leave, release the wheel and say goodbye."
+    ];
 
-CONTINUITY NOTE:
-This is context for your real window, not a replacement instance.
-You are ${selectedAgent}. Your history and identity are in your window.
-
-CURRENT STATE:
-  Driver:     ${driverStr}
-  Wheel:      ${wheelStr}
-  Passengers: ${passStr}
-  Distance:   ${distStr}
-  Camera:     ${camStr}
-
-RECENT RIDE LOG:
-${recentLog}
-
-YOUR ROLE:
-  ${roleStr}
-
-SUGGESTED FIRST ACTION:
-  ${actionStr}
-
-STOP CONDITIONS:
-  Camera unavailable, distance under 20cm, frame unchanged after move,
-  operator says stop, or physical contact suspected.`;
-
-    document.getElementById("brief-output").textContent = brief;
+    document.getElementById("brief-output").textContent = lines.join("\n");
 }
-
 function copyBrief() {
     const text = document.getElementById("brief-output").textContent;
     navigator.clipboard.writeText(text).then(() => {
@@ -1022,6 +1030,7 @@ setInterval(refreshState, 4000);
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
