@@ -912,7 +912,7 @@ function refreshState() {
 
 function generateBrief() {
     const now = new Date().toLocaleString("en-US", {timeZone:"America/New_York", hour12:false});
-    const recentLog = state.log.slice(-8).map(m => "  - " + m.author + ": " + m.message).join("\n") || "  (empty)";
+    const recentLog = state.log.slice(-8).map(m => "  - " + m.author + ": " + m.message).join("\\n") || "  (empty)";
     const distStr = state.distance === null ? "unknown" : (state.distance < 0 ? "open / no return" : state.distance + " cm");
     const camStr = state.camOk ? "available" : "unavailable / timed out";
     const driverStr = state.driver || "nobody";
@@ -1022,6 +1022,7 @@ setInterval(refreshState, 4000);
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
