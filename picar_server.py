@@ -248,13 +248,9 @@ def run_audio_command(command, engine, source):
 
 def audio_file_command(path):
     if AUDIO_PLAYER == "mpg123":
-        command = [AUDIO_PLAYER, "-q"]
-        if AUDIO_OUTPUT:
-            command.extend(["-o", AUDIO_OUTPUT])
-        if AUDIO_DEVICE:
-            command.extend(["-a", AUDIO_DEVICE])
-        command.append(path)
-        return command
+        # No flags -- routing handled by service file environment variables
+        # (SDL_AUDIODRIVER, AUDIODEV, PICAR_AUDIO_PLAYER)
+        return [AUDIO_PLAYER, path]
     if AUDIO_PLAYER == "sox":
         return [AUDIO_PLAYER, path, "-t", AUDIO_OUTPUT, AUDIO_DEVICE]
     return [AUDIO_PLAYER, "-q", path]
@@ -767,6 +763,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
