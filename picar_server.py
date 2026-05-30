@@ -868,10 +868,7 @@ function refreshState(){
     fetch("/observe").then(r=>r.json()).then(data=>{
         state.driver=data.driver;state.log=data.log||[];
         document.getElementById("driver-badge").textContent="Driver: "+(data.driver||"none");
-        document.getElementById("log").innerHTML=state.log.slice(-20).reverse().map(m=>{
-            const s=m.author==="system";
-            return "<div class=\"log-entry "+(s?"log-system":"")+"\">"+"<span class=\"log-author\">"+m.author+":</span> "+m.message+"</div>";
-        }).join("");
+        document.getElementById("log").innerHTML=state.log.slice(-20).reverse().map(m=>{const s=m.author==="system";return '<div class="log-entry '+( s?"log-system":"")+"\">"+'<span class="log-author">'+m.author+":</span> "+m.message+"</div>";}).join("");;;
     }).catch(()=>{});
     fetch("/distance").then(r=>r.json()).then(data=>{
         const d=data.distance;const l=d<0?"open":d+" cm";const c=d>0&&d<30?"warn":"ok";
@@ -935,6 +932,7 @@ setInterval(refreshCamera,6000);setInterval(refreshState,4000);
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
