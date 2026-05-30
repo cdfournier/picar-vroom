@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1">
+    <title>PiCar Control</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+        body { background:#1a1a2e; color:#eee; font-family:-apple-system,system-ui,sans-serif; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+        .header { text-align:center; padding:8px; background:#16213e; display:flex; align-items:center; justify-content:space-between; padding:8px 12px; }
+        .header h1 { font-size:16px; letter-spacing:2px; }
+        .status { font-size:11px; color:#0f0; }
+        .status.offline { color:#f44; }
+        .driver-info { font-size:11px; color:#aaa; }
+
+        .camera-area { flex:0 0 auto; text-align:center; padding:6px; position:relative; }
+        .camera-area img { max-width:100%; max-height:30vh; border-radius:8px; border:2px solid #333; background:#000; display:block; margin:0 auto; }
+
+        .controls { flex:1; display:flex; flex-direction:column; justify-content:center; padding:6px 10px; gap:8px; }
+
+        .drive-section { display:flex; flex-direction:column; align-items:center; gap:6px; }
+        .drive-row { display:flex; gap:6px; }
+        .drive-btn { width:75px; height:54px; border-radius:12px; border:none; font-size:22px; font-weight:bold; background:#0f3460; color:#e94560; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .drive-btn:active, .drive-btn.active { background:#e94560; color:#fff; }
+        .stop-btn { background:#e94560; color:#fff; font-size:14px; }
+        .stop-btn:active { background:#f00; }
+
+        .cam-section { display:flex; justify-content:center; gap:6px; }
+        .cam-btn { width:54px; height:40px; border-radius:10px; border:none; font-size:16px; background:#0f3460; color:#e94560; cursor:pointer; }
+        .cam-btn:active { background:#e94560; color:#fff; }
+        .cam-reset { font-size:11px; width:64px; }
+
+        .speed-section { display:flex; align-items:center; gap:10px; padding:2px 16px; }
+        .speed-section label { font-size:11px; color:#aaa; white-space:nowrap; }
+        .speed-section input[type=range] { flex:1; accent-color:#e94560; }
+        .speed-val { font-size:13px; font-weight:bold; min-width:24px; text-align:center; }
+
+        .observe-btn { background:#0f3460; color:#4af; border:1px solid #4af; border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer; width:100%; }
+        .observe-btn:active { background:#4af; color:#000; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <span class="driver-info" id="driver-info">Driver: none</span>
+    <h1>PiCar</h1>
+    <span class="status" id="status">connecting...</span>
+</div>
+
+<div class="camera-area">
+    <img id="cam-img" src="/camera?hires=false" alt="camera" />
+</div>
+
+<div class="controls">
+    <div class="drive-section">
+        <div class="drive-row">
+            <button class="drive-btn" id="btn-fwd">&#9650;</button>
+        </div>
+        <div class="drive-row">
+            <button class="drive-btn" id="btn-left">&#9664;</button>
+            <button class="drive-btn stop-btn" id="btn-stop">STOP</button>
+            <button class="drive-btn" id="btn-right">&#9654;</button>
+        </div>
+        <div class="drive-row">
+            <button class="drive-btn" id="btn-back">&#9660;</button>
+        </div>
+    </div>
+
+    <div class="speed-section">
+        <label>Speed</label>
+        <input type="range" id="speed" min="10" max="50" value="30">
+        <span class="speed-val" id="speed-val">30</span>
+    </div>
+
+    <div class="cam-section">
+        <button class="cam-btn" id="btn-pan-l">&#9664;</button>
+        <button class="cam-btn" id="btn-tilt-u">&#9650;</button>
+        <button class="cam-btn cam-reset" id="btn-cam-reset">&#9673; reset</button>
+        <button class="cam-btn" id="btn-tilt-d">&#9660;</button>
+        <button class="cam-btn" id="btn-pan-r">&#9654;</button>
+    </div>
+
+    <button class="observe-btn" onclick="takeWheel()">Take Wheel</button>
+</div>
+
+<script>
+let speed = 30;
+let camPan = 0, camTilt = 0;
+let driving = false;
+let driveInterval = null;
+
+document.getElementById('speed').addEventListener('input', e => {
+    speed = parseInt(e.target.value);
+    document.getElementById('speed-val').textContent = speed;
+});
+
+function api(method, path, body) {
+    return fetch(path, {
+        method,
+        headers: body ? {'Content-Type': 'application/json'} : {},
+        body: body ? JSON.stringify(body) : undefined
+    });
+}
+
+function drive(angle, direction) {
+    api('POST', '/drive', {angle, direction, speed, duration: 0.4});
+}
+
+function stopCar() {
+    api('POST', '/stop');
+}
+
+// Drive buttons — hold to repeat, release to stop
+const driveButtons = [
+    {id: 'btn-fwd',   angle: 0,   dir: 'forward'},
+    {id: 'btn-back',  angle: 0,   dir: 'backward'},
+    {id: 'btn-left',  angle: -28, dir: 'forward'},
+    {id: 'btn-right', angle: 28,  dir: 'forward'},
+];
+
+driveButtons.forEach(({id, angle, dir}) => {
+    const btn = document.getElementById(id);
+    function start(e) {
+        e.preventDefault();
+        btn.classList.add('active');
+        drive(angle, dir);
+        driveInterval = setInterval(() => drive(angle, dir), 350);
+    }
+    function stop(e) {
+        e.preventDefault();
+        btn.classList.remove('active');
+        clearInterval(driveInterval);
+        stopCar();
+    }
+    btn.addEventListener('touchstart', start, {passive: false});
+    btn.addEventListener('touchend', stop, {passive: false});
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('mouseleave', stop);
+});
+
+document.getElementById('btn-stop').addEventListener('click', stopCar);
+
+// Camera controls
+document.getElementById('btn-pan-l').addEventListener('click', () => {
+    camPan = Math.max(-35, camPan - 10);
+    api('POST', '/look', {pan: camPan, tilt: camTilt});
+});
+document.getElementById('btn-pan-r').addEventListener('click', () => {
+    camPan = Math.min(35, camPan + 10);
+    api('POST', '/look', {pan: camPan, tilt: camTilt});
+});
+document.getElementById('btn-tilt-u').addEventListener('click', () => {
+    camTilt = Math.min(20, camTilt + 10);
+    api('POST', '/look', {pan: camPan, tilt: camTilt});
+});
+document.getElementById('btn-tilt-d').addEventListener('click', () => {
+    camTilt = Math.max(-20, camTilt - 10);
+    api('POST', '/look', {pan: camPan, tilt: camTilt});
+});
+document.getElementById('btn-cam-reset').addEventListener('click', () => {
+    camPan = 0; camTilt = 0;
+    api('POST', '/look', {pan: 0, tilt: 0});
+});
+
+function takeWheel() {
+    const name = prompt('Your name?') || 'Operator';
+    api('POST', '/handoff', {action: 'take', driver: name});
+}
+
+// Refresh camera and status
+function refreshCamera() {
+    const img = document.getElementById('cam-img');
+    const tImg = new Image();
+    tImg.onload = () => { img.src = tImg.src; document.getElementById('status').textContent = 'live'; document.getElementById('status').className = 'status'; };
+    tImg.onerror = () => { document.getElementById('status').textContent = 'offline'; document.getElementById('status').className = 'status offline'; };
+    tImg.src = '/camera?hires=false&t=' + Date.now();
+}
+
+function refreshState() {
+    fetch('/car_state').then(r => r.json()).then(data => {
+        document.getElementById('driver-info').textContent = 'Driver: ' + (data.driver || 'none');
+        camPan = data.cam_pan || 0;
+        camTilt = data.cam_tilt || 0;
+    }).catch(() => {});
+}
+
+refreshCamera();
+refreshState();
+setInterval(refreshCamera, 5000);
+setInterval(refreshState, 4000);
+</script>
+</body>
+</html>
