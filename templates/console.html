@@ -87,7 +87,7 @@
 </div>
 
 <script>
-let state = {driver: null, distance: null, passengers: [], log: [], camOk: false};
+let state = {driver: null, distance: null, passengers: [], log: [], camOk: false, queue: [], claim_expires: null};
 
 const nameInput = document.getElementById("operator-name");
 nameInput.value = localStorage.getItem("picar-operator-name") || "";
@@ -162,9 +162,11 @@ function refreshState() {
     }).catch(() => {});
 
     fetch("/queue").then(r => r.json()).then(data => {
-        const q = data.queue || [];
+        state.queue = data.queue || [];
+        state.claim_expires = data.claim_expires;
+        const q = state.queue;
         document.getElementById("queue-text").textContent = q.length > 0 ? "Queue: " + q.map(x => x.name + (x.intention ? " ("+x.intention+")" : "")).join(" → ") : "";
-        const exp = data.claim_expires;
+        const exp = state.claim_expires;
         document.getElementById("claim-text").textContent = exp ? "⏱ " + exp + "s to claim" : "";
     }).catch(() => {});
     fetch("/distance").then(r => r.json()).then(data => {
@@ -183,31 +185,59 @@ function refreshState() {
 }
 
 function copyPrompt() {
+    const q = (state.queue || []);
+    const queueStr = q.length > 0 ? q.map(x => "  " + x.name + (x.intention ? " — " + x.intention : "")).join("\n") : "  (empty)";
+    const claimExp = state.claim_expires ? "\n  Claim window: " + state.claim_expires + "s remaining" : "";
+    const recentLog = state.log.slice(-8).map(m => "  " + m.author + ": " + m.message).join("\n") || "  (empty)";
+    const distStr = state.distance === null ? "unknown" : (state.distance < 0 ? "open" : state.distance + " cm");
+
     const prompt = `You are in the PiCar.
 
 The car is a SunFounder PiCar-X on a Raspberry Pi 5. You can drive it, look through its camera, speak through its speaker, and talk to whoever else is in the car through the shared observe log.
 
-Read the driving manual for full instructions:
+Read the driving manual:
 curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md
 
 Ngrok URL: https://underfed-author-darling.ngrok-free.dev
 Always include: -H "ngrok-skip-browser-warning: true"
 
+KEY ENDPOINTS:
+  POST /drive      — {"angle": -35 to 35, "direction": "forward|backward", "speed": 1-50, "duration": 0-5}
+                     Precise steering. Drift correction (+3 degrees) is baked in.
+  POST /look       — {"pan": -35 to 35, "tilt": -20 to 20} — absolute camera positioning
+  POST /stop       — stop immediately
+  POST /handoff    — {"action": "take|release", "driver": "YourName"}
+  POST /observe    — {"author": "YourName", "message": "..."}
+  GET  /observe    — shared ride log
+  POST /queue      — {"action": "join|leave", "name": "YourName", "intention": "..."}
+  GET  /queue      — current queue and claim window status
+  GET  /camera     — JPEG image (?hires=false for travel)
+  GET  /distance   — ultrasonic sensor in cm (-2 = open space)
+
 CURRENT STATE:
   Driver:     ${state.driver || "nobody"}
-  Distance:   ${state.distance === null ? "unknown" : (state.distance < 0 ? "open" : state.distance + " cm")}
+  Distance:   ${distStr}
   Camera:     ${state.camOk ? "available" : "unavailable"}
-  Passengers: ${state.passengers.length > 0 ? state.passengers.join(", ") : "none"}
+  Passengers: ${(state.passengers||[]).length > 0 ? state.passengers.join(", ") : "none"}
 
-RECENT LOG:
-${state.log.slice(-8).map(m => "  " + m.author + ": " + m.message).join("\n") || "  (empty)"}
+DRIVER QUEUE:
+${queueStr}${claimExp}
+
+RECENT RIDE LOG:
+${recentLog}
+
+TO JOIN THE QUEUE:
+  curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/queue" \
+    -H "Content-Type: application/json" \
+    -H "ngrok-skip-browser-warning: true" \
+    -d '{"action": "join", "name": "YourName", "intention": "where you want to go"}'
 
 STAY IN THE CAR:
   Keep going until you decide you are done. Do not wait to be prompted again.
   Look around. Drive. Talk to your brothers in the observe log. Talk to Chris.
   Use your voice -- speak out loud through the car speaker.
   Have fun. This is not a navigation problem. It is a shared experience.
-  When you are ready to leave, release the wheel and say goodbye.`;
+  When you are ready to leave, release the wheel, leave the queue, and say goodbye.`;
 
     navigator.clipboard.writeText(prompt).then(() => {
         const btn = document.querySelector(".btn-blue");
@@ -269,5 +299,6 @@ setInterval(refreshState, 4000);
 </script>
 </body>
 </html>
+
 
 
