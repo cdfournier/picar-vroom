@@ -668,7 +668,7 @@ def live():
                 background: #ff4d00;
                 color: white;
                 border: none;
-                border-radius: 4px;
+                border-radius: 0.5rem;
                 font-size: 1rem;
                 cursor: pointer;
                 font-weight: bold;
@@ -697,7 +697,7 @@ def live():
                 background: #1a1a1a;
                 color: #ff4d00;
                 border: 1px solid #333;
-                border-radius: 4px;
+                border-radius: 0.5rem;
                 padding: 0.25rem 0.5rem;
                 font-size: 0.8rem;
                 width: 8rem;
@@ -711,20 +711,20 @@ def live():
 
             .chat-row input[type="text"] {
                 flex: 1;
-                padding: 0.6rem 0.75rem;
+                padding: 0.5rem 0.75rem;
                 background: #1a1a1a;
                 color: white;
                 border: 1px solid #333;
-                border-radius: 4px;
+                border-radius: 0.5rem;
                 font-size: 0.95rem;
             }
 
             .chat-row button {
-                padding: 0.6rem 1rem;
+                padding: 0.5rem 1rem;
                 background: #ff4d00;
                 color: white;
                 border: none;
-                border-radius: 4px;
+                border-radius: 0.5rem;
                 font-size: 0.95rem;
                 cursor: pointer;
                 font-weight: bold;

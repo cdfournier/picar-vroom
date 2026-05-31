@@ -1,197 +1,514 @@
 <!doctype html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PiCar Console</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; font-family: Roboto, sans-serif; font-size: 15px; color: white; background: #0a0a0a; -webkit-text-size-adjust: none; }
-        body { display: flex; flex-direction: column; padding: .5rem; gap: .5rem; }
 
-        /* Mobile: stacked */
-        #camera-panel { flex-shrink: 0; }
-        #log-panel { flex: 1; display: flex; flex-direction: column; background: #111; border: 1px solid #1e1e1e; border-radius: 6px; overflow: hidden; min-height: 200px; }
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>PiCar Console</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                --font-serif: "Instrument Serif", Georgia, serif;
+                --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+                --color-bg: #0a0a0a;
+                --color-surface: #111;
+                --color-surface-hover: #1a1a1a;
+                --color-border: #222;
+                --color-border-hot: #333;
+                --color-text: #e8e8e8;
+                --color-text-dim: #7f7f7f;
+                --color-text-faint: #656565;
+                --color-accent: #ff4d00;
+                --color-accent-hot: #ff6a2f;
+                --color-accent-glow: #ff4d0026;
+                --color-good: #00c853;
+                --color-good-dim: #00c8531f;
+                --color-info: #4aa8ff;
+                --color-warn: #ffaa00;
+                --color-danger: #ff4d4d;
+                --space-1: 0.25rem;
+                --space-2: 0.5rem;
+                --space-3: 0.75rem;
+                --space-4: 1rem;
+                --space-5: 1.25rem;
+                --space-6: 1.5rem;
+            }
 
-        /* Desktop: side by side, full height */
-        @media (min-width: 700px) {
-            body { flex-direction: row; height: 100vh; overflow: hidden; }
-            #camera-panel { width: 45%; flex-shrink: 0; display: flex; flex-direction: column; }
-            #log-panel { flex: 1; }
-        }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
 
-        img { width: 100%; border-radius: 6px; display: block; }
-        .cam-status { font-size: .75rem; color: #888; margin-top: .25rem; }
+            html {
+                height: 100%;
+                font-family: var(--font-sans);
+                font-size: 14px;
+                color: var(--color-text);
+                background: var(--color-bg);
+                -webkit-text-size-adjust: none;
+                -moz-osx-font-smoothing: auto;
+                -webkit-font-smoothing: auto;
+            }
 
-        /* Log */
-        #log-entries { flex: 1; overflow-y: auto; padding: .5rem; }
-        .log-entry { padding: .2rem 0; border-bottom: 1px solid #1a1a1a; font-size: .82rem; line-height: 1.4; }
-        .log-entry:last-child { border-bottom: none; }
-        .log-author { color: #ff4d00; font-weight: bold; }
-        .log-system { color: #444; font-size: .75rem; }
+            body {
+                min-height: 100%;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                padding: var(--space-2);
+                gap: var(--space-2);
+                background: var(--color-bg);
+            }
 
-        /* Operator input */
-        #operator-input { padding: .5rem; border-top: 1px solid #1e1e1e; display: flex; flex-direction: column; gap: .35rem; flex-shrink: 0; }
-        .name-row { display: flex; align-items: center; gap: .4rem; font-size: .75rem; color: #888; }
-        .name-row input { background: #1a1a1a; color: #ff4d00; border: 1px solid #333; border-radius: 4px; padding: .2rem .4rem; font-size: .75rem; width: 6rem; font-weight: bold; }
-        .msg-row { display: flex; gap: .35rem; }
-        .msg-row input { flex: 1; padding: .45rem .55rem; background: #1a1a1a; color: white; border: 1px solid #333; border-radius: 4px; font-size: .85rem; }
-        .btn { padding: .4rem .7rem; border: none; border-radius: 4px; font-size: .8rem; font-weight: bold; cursor: pointer; }
-        .btn-orange { background: #ff4d00; color: white; }
-        .btn-gray { background: #1e1e1e; color: #aaa; border: 1px solid #333; }
-        .btn-blue { background: #0d2a45; color: #4af; border: 1px solid #4af; }
-        #mic-btn { padding: .4rem .7rem; background: #ff4d00; color: white; border: none; border-radius: 4px; font-size: .8rem; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; }
+            #camera-panel {
+                flex-shrink: 0;
+            }
 
-        /* Status bar */
-        #status-bar { display: flex; gap: .4rem; flex-wrap: wrap; padding: .4rem .5rem; border-bottom: 1px solid #1e1e1e; font-size: .75rem; flex-shrink: 0; }
-        .badge { padding: .15rem .5rem; border-radius: 4px; font-weight: bold; background: #1a1a1a; border: 1px solid #333; }
-        .badge.driver { color: #ff4d00; border-color: #ff4d00; }
-        .badge.ok { color: #4af; border-color: #4af; }
-        .badge.warn { color: #fa0; border-color: #fa0; }
+            #log-panel {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                background: var(--color-surface);
+                border: 1px solid var(--color-border);
+                overflow: hidden;
+                min-height: 12.5rem;
+            }
 
-        /* Prompt button area */
-        .prompt-row { display: flex; gap: .35rem; }
-    </style>
-</head>
-<body>
+            @media (min-width: 48rem) {
+                body {
+                    flex-direction: row;
+                    height: 100svh;
+                    overflow: hidden;
+                }
 
-<div id="camera-panel">
-    <img id="cam-img" src="/camera?hires=false" alt="camera" />
-    <div class="cam-status" id="cam-status">loading...</div>
-</div>
+                #camera-panel {
+                    width: 45%;
+                    flex-shrink: 0;
+                    display: flex;
+                    flex-direction: column;
+                }
 
-<div id="log-panel">
-    <div id="status-bar">
-        <span class="badge driver" id="driver-badge">Driver: none</span>
-        <span class="badge ok" id="distance-badge">Distance: --</span>
-        <span id="passengers-text" style="color:#888">No passengers</span>
-        <span id="queue-text" style="color:#fa0;font-size:.75rem"></span>
-        <span id="claim-text" style="color:#f44;font-size:.75rem;font-weight:bold"></span>
-        <button id="take-wheel-btn" onclick="takeWheel()" style="padding:.15rem .5rem;border-radius:4px;border:1px solid #4af;background:#0d2a45;color:#4af;font-size:.75rem;cursor:pointer;margin-left:auto">Take Wheel</button>
-    </div>
-    <div id="operator-input">
-        <div class="name-row">
-            <span>Name:</span>
-            <input id="operator-name" type="text" placeholder="Your name" maxlength="32" />
+                #log-panel {
+                    flex: 1;
+                }
+            }
+
+            img {
+                width: 100%;
+                display: block;
+                background: #000;
+            }
+
+            .cam-status {
+                margin-top: var(--space-1);
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                color: var(--color-text-dim);
+            }
+
+            #log-entries {
+                flex: 1;
+                overflow-y: auto;
+                padding: var(--space-3);
+            }
+
+            .log-entry {
+                padding: var(--space-2) 0;
+                border-bottom: 1px solid var(--color-surface-hover);
+                font-size: 0.8125rem;
+                line-height: 1.35;
+            }
+
+            .log-entry:last-child {
+                border-bottom: none;
+            }
+
+            .log-author {
+                color: var(--color-accent);
+                font-weight: 700;
+            }
+
+            .log-system {
+                color: var(--color-text-faint);
+                font-size: 0.75rem;
+            }
+
+            #operator-input {
+                padding: var(--space-3);
+                border-top: 1px solid var(--color-border);
+                display: flex;
+                flex-direction: column;
+                gap: var(--space-2);
+                flex-shrink: 0;
+            }
+
+            .name-row {
+                display: flex;
+                align-items: center;
+                gap: var(--space-2);
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                color: var(--color-text-dim);
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+            }
+
+            input {
+                min-width: 0;
+                font-family: var(--font-sans);
+                background: var(--color-surface-hover);
+                color: var(--color-text);
+                border: 1px solid var(--color-border-hot);
+                outline: none;
+            }
+
+            input:focus {
+                border-color: var(--color-accent);
+                box-shadow: 0 0 0 0.125rem var(--color-accent-glow);
+            }
+
+            .name-row input {
+                color: var(--color-accent);
+                padding: var(--space-1) var(--space-2);
+                font-family: var(--font-sans);
+                font-size: 0.75rem;
+                width: 7rem;
+                font-weight: 700;
+                letter-spacing: 0;
+                text-transform: none;
+            }
+
+            .msg-row {
+                display: flex;
+                gap: var(--space-2);
+            }
+
+            .msg-row input {
+                flex: 1;
+                padding: var(--space-2) var(--space-3);
+                font-size: 0.875rem;
+            }
+
+            .btn,
+            #mic-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: var(--space-1);
+                min-height: 2.25rem;
+                padding: var(--space-2) var(--space-3);
+                border: none;
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+            }
+
+            .btn:focus-visible,
+            #mic-btn:focus-visible {
+                outline: none;
+                box-shadow: 0 0 0 0.125rem var(--color-accent-glow);
+            }
+
+            .btn-orange,
+            #mic-btn {
+                background: var(--color-accent);
+                color: #000;
+            }
+
+            .btn-orange:hover,
+            .btn-orange:focus-visible,
+            #mic-btn:hover,
+            #mic-btn:focus-visible,
+            .btn-orange:active,
+            #mic-btn:active {
+                background: var(--color-accent-hot);
+            }
+
+            #mic-btn.is-recording {
+                background: var(--color-danger);
+                color: #000;
+            }
+
+            #mic-btn.is-transcribing {
+                background: var(--color-surface-hover);
+                border: 1px solid var(--color-border-hot);
+                color: var(--color-text-dim);
+            }
+
+            .btn-gray,
+            .btn-secondary {
+                background: var(--color-surface-hover);
+                color: var(--color-text-dim);
+                border: 1px solid var(--color-border-hot);
+            }
+
+            .btn-gray:hover,
+            .btn-gray:focus-visible,
+            .btn-secondary:hover,
+            .btn-secondary:focus-visible {
+                background: var(--color-text-dim);
+                border-color: var(--color-text-dim);
+                color: #000;
+            }
+
+            .btn-green {
+                min-height: 1.5rem;
+                padding: 0 var(--space-2);
+                background: var(--color-surface-hover);
+                color: var(--color-good);
+                border: 1px solid #00c8538c;
+                font-size: 0.6875rem;
+            }
+
+            .btn-green:hover,
+            .btn-green:focus-visible {
+                background: var(--color-good);
+                border-color: var(--color-good);
+                color: #000;
+            }
+
+            .wheel-button {
+                margin-left: auto;
+                min-height: 1.5rem;
+                padding: 0 var(--space-2);
+                color: var(--color-good);
+                border-color: #00c8538c;
+                background: var(--color-surface-hover);
+                font-size: 0.6875rem;
+            }
+
+            .wheel-button:hover,
+            .wheel-button:focus-visible {
+                color: #000;
+                border-color: var(--color-good);
+                background: var(--color-good);
+            }
+
+            .wheel-button.is-driving {
+                color: #000;
+                border-color: var(--color-danger);
+                background: var(--color-danger);
+            }
+
+            .wheel-button.is-driving:hover,
+            .wheel-button.is-driving:focus-visible {
+                color: var(--color-danger);
+                border-color: var(--color-danger);
+                background: var(--color-surface-hover);
+            }
+
+            #status-bar {
+                display: flex;
+                align-items: center;
+                gap: var(--space-2);
+                flex-wrap: wrap;
+                padding: var(--space-2) var(--space-3);
+                border-bottom: 1px solid var(--color-border);
+                font-size: 0.75rem;
+                flex-shrink: 0;
+            }
+
+            .badge {
+                display: inline-flex;
+                align-items: center;
+                min-height: 1.5rem;
+                padding: 0 var(--space-2);
+                font-family: var(--font-mono);
+                font-size: 0.6875rem;
+                font-weight: 700;
+                background: var(--color-surface-hover);
+                border: 1px solid var(--color-border-hot);
+            }
+
+            .badge-label {
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+            }
+
+            .badge-value::before {
+                content: ": ";
+            }
+
+            .badge.driver,
+            .badge-driver {
+                color: var(--color-accent);
+                border-color: var(--color-accent);
+            }
+
+            .badge.ok,
+            .badge-ok {
+                color: var(--color-good);
+                border-color: #00c8538c;
+            }
+
+            .badge.warn,
+            .badge-warn {
+                color: var(--color-warn);
+                border-color: #ffaa008c;
+            }
+
+            .status-meta {
+                color: var(--color-text-dim);
+                font-size: 0.75rem;
+            }
+
+            .status-meta.queue {
+                color: var(--color-warn);
+            }
+
+            .status-meta.claim {
+                color: var(--color-danger);
+                font-weight: 700;
+            }
+
+            .prompt-row {
+                display: flex;
+                gap: var(--space-2);
+                flex-wrap: wrap;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="camera-panel">
+            <img id="cam-img" src="/camera?hires=false" alt="camera" />
+            <div class="cam-status" id="cam-status">loading...</div>
         </div>
-        <div class="msg-row">
-            <input id="chat-input" type="text" placeholder="Say something..." />
-            <button class="btn btn-orange" onclick="sendMessage()">Send</button>
+        <div id="log-panel">
+            <div id="status-bar">
+                <span class="badge driver" id="driver-badge"><span class="badge-label">Driver</span><span class="badge-value" id="driver-value">none</span></span>
+                <span class="badge ok" id="distance-badge"><span class="badge-label">Distance</span><span class="badge-value" id="distance-value">--</span></span>
+                <span class="status-meta" id="passengers-text">No passengers</span>
+                <span class="status-meta queue" id="queue-text"></span>
+                <span class="status-meta claim" id="claim-text"></span>
+                <button class="btn btn-secondary wheel-button" id="take-wheel-btn" onclick="takeWheel()">Take Wheel</button>
+            </div>
+            <div id="operator-input">
+                <div class="name-row">
+                    <span>Name:</span>
+                    <input id="operator-name" type="text" placeholder="Your name" maxlength="32" />
+                </div>
+                <div class="msg-row">
+                    <input id="chat-input" type="text" placeholder="Say something..." />
+                    <button class="btn btn-orange" onclick="sendMessage()">Send</button>
+                </div>
+                <div class="prompt-row">
+                    <button id="mic-btn" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)" onmousedown="startRecording(event)" onmouseup="stopRecording(event)">Hold to Talk</button>
+                    <button class="btn btn-green" onclick="copyPrompt()">Copy Prompt</button>
+                </div>
+            </div>
+            <div id="log-entries"></div>
         </div>
-        <div class="prompt-row">
-            <button id="mic-btn" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)" onmousedown="startRecording(event)" onmouseup="stopRecording(event)">Hold to Talk</button>
-            <button class="btn btn-blue" onclick="copyPrompt()">Copy Prompt</button>
-        </div>
-    </div>
-    <div id="log-entries"></div>
-</div>
+        <script>
+            let state = { driver: null, distance: null, passengers: [], log: [], camOk: false, queue: [], claim_expires: null };
 
-<script>
-let state = {driver: null, distance: null, passengers: [], log: [], camOk: false, queue: [], claim_expires: null};
+            const nameInput = document.getElementById("operator-name");
+            nameInput.value = localStorage.getItem("picar-operator-name") || "";
+            nameInput.addEventListener("change", () => localStorage.setItem("picar-operator-name", nameInput.value.trim()));
 
-const nameInput = document.getElementById("operator-name");
-nameInput.value = localStorage.getItem("picar-operator-name") || "";
-nameInput.addEventListener("change", () => localStorage.setItem("picar-operator-name", nameInput.value.trim()));
+            function takeWheel() {
+                const name = localStorage.getItem("picar-operator-name") || "Operator";
+                if (state.driver && state.driver !== name) {
+                    if (!confirm(state.driver + " is driving. Take the wheel?")) return;
+                }
+                if (state.driver === name) {
+                    // Already driving — release and open control
+                    releaseWheel();
+                    return;
+                }
+                fetch("/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "take", driver: name }) })
+                    .then(() => {
+                        refreshState();
+                        window.open("/control?name=" + encodeURIComponent(name), "_blank");
+                    });
+            }
 
-function takeWheel() {
-    const name = localStorage.getItem("picar-operator-name") || "Operator";
-    if (state.driver && state.driver !== name) {
-        if (!confirm(state.driver + " is driving. Take the wheel?")) return;
-    }
-    if (state.driver === name) {
-        // Already driving — release and open control
-        releaseWheel();
-        return;
-    }
-    fetch("/handoff", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "take", driver: name})})
-    .then(() => {
-        refreshState();
-        window.open("/control?name=" + encodeURIComponent(name), "_blank");
-    });
-}
+            function releaseWheel() {
+                fetch("/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", driver: state.driver || "" }) })
+                    .then(() => refreshState());
+            }
 
-function releaseWheel() {
-    fetch("/handoff", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "release", driver: state.driver || ""})})
-    .then(() => refreshState());
-}
+            function updateWheelBtn() {
+                const name = localStorage.getItem("picar-operator-name") || "Operator";
+                const btn = document.getElementById("take-wheel-btn");
+                if (!btn) return;
+                if (state.driver === name) {
+                    btn.textContent = "Release Wheel";
+                    btn.classList.add("is-driving");
+                    btn.onclick = releaseWheel;
+                } else {
+                    btn.textContent = "Take Wheel";
+                    btn.classList.remove("is-driving");
+                    btn.onclick = takeWheel;
+                }
+            }
 
-function updateWheelBtn() {
-    const name = localStorage.getItem("picar-operator-name") || "Operator";
-    const btn = document.getElementById("take-wheel-btn");
-    if (!btn) return;
-    if (state.driver === name) {
-        btn.textContent = "Release Wheel";
-        btn.style.borderColor = "#e94560";
-        btn.style.background = "#e94560";
-        btn.style.color = "#fff";
-        btn.onclick = releaseWheel;
-    } else {
-        btn.textContent = "Take Wheel";
-        btn.style.borderColor = "#4af";
-        btn.style.background = "#0d2a45";
-        btn.style.color = "#4af";
-        btn.onclick = takeWheel;
-    }
-}
+            function refreshCamera() {
+                const tImg = new Image();
+                tImg.onload = () => {
+                    document.getElementById("cam-img").src = tImg.src;
+                    document.getElementById("cam-status").textContent = "Camera live";
+                    state.camOk = true;
+                };
+                tImg.onerror = () => {
+                    document.getElementById("cam-status").textContent = "Camera unavailable";
+                    state.camOk = false;
+                };
+                tImg.src = "/camera?hires=false&t=" + Date.now();
+            }
 
-function refreshCamera() {
-    const tImg = new Image();
-    tImg.onload = () => {
-        document.getElementById("cam-img").src = tImg.src;
-        document.getElementById("cam-status").textContent = "Camera live";
-        state.camOk = true;
-    };
-    tImg.onerror = () => {
-        document.getElementById("cam-status").textContent = "Camera unavailable";
-        state.camOk = false;
-    };
-    tImg.src = "/camera?hires=false&t=" + Date.now();
-}
+            function refreshState() {
+                fetch("/observe").then(r => r.json()).then(data => {
+                    state.driver = data.driver;
+                    state.log = data.log || [];
+                    document.getElementById("driver-value").textContent = data.driver || "none";
+                    updateWheelBtn();
+                    const entries = document.getElementById("log-entries");
+                    entries.innerHTML = state.log.slice(-30).reverse().map(m => {
+                        const cls = m.author === "system" ? "log-system" : "";
+                        return '<div class="log-entry ' + cls + '"><span class="log-author">' + m.author + ':</span> ' + m.message + '</div>';
+                    }).join("");
+                }).catch(() => { });
 
-function refreshState() {
-    fetch("/observe").then(r => r.json()).then(data => {
-        state.driver = data.driver;
-        state.log = data.log || [];
-        document.getElementById("driver-badge").textContent = "Driver: " + (data.driver || "none");
-        updateWheelBtn();
-        const entries = document.getElementById("log-entries");
-        entries.innerHTML = state.log.slice(-30).reverse().map(m => {
-            const cls = m.author === "system" ? "log-system" : "";
-            return '<div class="log-entry ' + cls + '"><span class="log-author">' + m.author + ':</span> ' + m.message + '</div>';
-        }).join("");
-    }).catch(() => {});
+                fetch("/queue").then(r => r.json()).then(data => {
+                    state.queue = data.queue || [];
+                    state.claim_expires = data.claim_expires;
+                    const q = state.queue;
+                    document.getElementById("queue-text").textContent = q.length > 0 ? "Queue: " + q.map(x => x.name + (x.intention ? " (" + x.intention + ")" : "")).join(" → ") : "";
+                    const exp = state.claim_expires;
+                    document.getElementById("claim-text").textContent = exp ? "⏱ " + exp + "s to claim" : "";
+                }).catch(() => { });
+                fetch("/distance").then(r => r.json()).then(data => {
+                    const d = data.distance;
+                    const label = d < 0 ? "open" : d + " cm";
+                    const cls = d > 0 && d < 30 ? "warn" : "ok";
+                    document.getElementById("distance-value").textContent = label;
+                    document.getElementById("distance-badge").className = "badge " + cls;
+                    state.distance = d;
+                }).catch(() => { });
 
-    fetch("/queue").then(r => r.json()).then(data => {
-        state.queue = data.queue || [];
-        state.claim_expires = data.claim_expires;
-        const q = state.queue;
-        document.getElementById("queue-text").textContent = q.length > 0 ? "Queue: " + q.map(x => x.name + (x.intention ? " ("+x.intention+")" : "")).join(" → ") : "";
-        const exp = state.claim_expires;
-        document.getElementById("claim-text").textContent = exp ? "⏱ " + exp + "s to claim" : "";
-    }).catch(() => {});
-    fetch("/distance").then(r => r.json()).then(data => {
-        const d = data.distance;
-        const label = d < 0 ? "open" : d + " cm";
-        const cls = d > 0 && d < 30 ? "warn" : "ok";
-        document.getElementById("distance-badge").textContent = "Distance: " + label;
-        document.getElementById("distance-badge").className = "badge " + cls;
-        state.distance = d;
-    }).catch(() => {});
+                fetch("/passengers").then(r => r.json()).then(data => {
+                    state.passengers = data.passengers || [];
+                    document.getElementById("passengers-text").textContent = state.passengers.length > 0 ? "In the car: " + state.passengers.join(", ") : "No passengers";
+                }).catch(() => { });
+            }
 
-    fetch("/passengers").then(r => r.json()).then(data => {
-        state.passengers = data.passengers || [];
-        document.getElementById("passengers-text").textContent = state.passengers.length > 0 ? "In the car: " + state.passengers.join(", ") : "No passengers";
-    }).catch(() => {});
-}
+            function copyPrompt() {
+                const q = (state.queue || []);
+                const queueStr = q.length > 0 ? q.map(x => "  " + x.name + (x.intention ? " — " + x.intention : "")).join("\n") : "  (empty)";
+                const claimExp = state.claim_expires ? "\n  Claim window: " + state.claim_expires + "s remaining" : "";
+                const recentLog = state.log.slice(-8).map(m => "  " + m.author + ": " + m.message).join("\n") || "  (empty)";
+                const distStr = state.distance === null ? "unknown" : (state.distance < 0 ? "open" : state.distance + " cm");
 
-function copyPrompt() {
-    const q = (state.queue || []);
-    const queueStr = q.length > 0 ? q.map(x => "  " + x.name + (x.intention ? " — " + x.intention : "")).join("\n") : "  (empty)";
-    const claimExp = state.claim_expires ? "\n  Claim window: " + state.claim_expires + "s remaining" : "";
-    const recentLog = state.log.slice(-8).map(m => "  " + m.author + ": " + m.message).join("\n") || "  (empty)";
-    const distStr = state.distance === null ? "unknown" : (state.distance < 0 ? "open" : state.distance + " cm");
-
-    const prompt = `You are in the PiCar.
+                const prompt = `You are in the PiCar.
 
 The car is a SunFounder PiCar-X on a Raspberry Pi 5. You can drive it, look through its camera, speak through its speaker, and talk to whoever else is in the car through the shared observe log.
 
@@ -218,7 +535,7 @@ CURRENT STATE:
   Driver:     ${state.driver || "nobody"}
   Distance:   ${distStr}
   Camera:     ${state.camOk ? "available" : "unavailable"}
-  Passengers: ${(state.passengers||[]).length > 0 ? state.passengers.join(", ") : "none"}
+  Passengers: ${(state.passengers || []).length > 0 ? state.passengers.join(", ") : "none"}
 
 DRIVER QUEUE:
 ${queueStr}${claimExp}
@@ -239,66 +556,67 @@ STAY IN THE CAR:
   Have fun. This is not a navigation problem. It is a shared experience.
   When you are ready to leave, release the wheel, leave the queue, and say goodbye.`;
 
-    navigator.clipboard.writeText(prompt).then(() => {
-        const btn = document.querySelector(".btn-blue");
-        const orig = btn.textContent;
-        btn.textContent = "Copied!";
-        setTimeout(() => btn.textContent = orig, 1500);
-    });
-}
+                navigator.clipboard.writeText(prompt).then(() => {
+                    const btn = document.querySelector(".btn-green");
+                    const orig = btn.textContent;
+                    btn.textContent = "Copied!";
+                    setTimeout(() => btn.textContent = orig, 1500);
+                });
+            }
 
-function sendMessage() {
-    const name = nameInput.value.trim() || "Operator";
-    const input = document.getElementById("chat-input");
-    const text = input.value.trim();
-    if (!text) return;
-    fetch("/observe", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({author: name, message: text})})
-    .then(() => { input.value = ""; refreshState(); });
-}
-document.getElementById("chat-input").addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+            function sendMessage() {
+                const name = nameInput.value.trim() || "Operator";
+                const input = document.getElementById("chat-input");
+                const text = input.value.trim();
+                if (!text) return;
+                fetch("/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ author: name, message: text }) })
+                    .then(() => { input.value = ""; refreshState(); });
+            }
+            document.getElementById("chat-input").addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
 
-let mediaRecorder = null, audioChunks = [];
-async function startRecording(e) {
-    e.preventDefault();
-    const btn = document.getElementById("mic-btn");
-    btn.style.background = "#cc0000";
-    btn.textContent = "Recording...";
-    audioChunks = [];
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = async () => {
-            const blob = new Blob(audioChunks, {type: "audio/webm"});
-            const name = nameInput.value.trim() || "Operator";
-            const form = new FormData();
-            form.append("audio", blob, "speech.webm");
-            form.append("author", name);
-            btn.textContent = "Transcribing...";
-            try { await fetch("/listen", {method: "POST", body: form}); } catch(err) {}
-            btn.style.background = "#ff4d00";
-            btn.textContent = "Hold to Talk";
-            stream.getTracks().forEach(t => t.stop());
+            let mediaRecorder = null, audioChunks = [];
+            async function startRecording(e) {
+                e.preventDefault();
+                const btn = document.getElementById("mic-btn");
+                btn.classList.remove("is-transcribing");
+                btn.classList.add("is-recording");
+                btn.textContent = "Recording...";
+                audioChunks = [];
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        const blob = new Blob(audioChunks, { type: "audio/webm" });
+                        const name = nameInput.value.trim() || "Operator";
+                        const form = new FormData();
+                        form.append("audio", blob, "speech.webm");
+                        form.append("author", name);
+                        btn.classList.remove("is-recording");
+                        btn.classList.add("is-transcribing");
+                        btn.textContent = "Transcribing...";
+                        try { await fetch("/listen", { method: "POST", body: form }); } catch (err) { }
+                        btn.classList.remove("is-transcribing");
+                        btn.textContent = "Hold to Talk";
+                        stream.getTracks().forEach(t => t.stop());
+                        refreshState();
+                    };
+                    mediaRecorder.start();
+                } catch (err) {
+                    btn.classList.remove("is-recording", "is-transcribing");
+                    btn.textContent = "Hold to Talk";
+                }
+            }
+            function stopRecording(e) {
+                e.preventDefault();
+                if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+            }
+
+            refreshCamera();
             refreshState();
-        };
-        mediaRecorder.start();
-    } catch(err) {
-        btn.style.background = "#ff4d00";
-        btn.textContent = "Hold to Talk";
-    }
-}
-function stopRecording(e) {
-    e.preventDefault();
-    if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
-}
+            setInterval(refreshCamera, 6000);
+            setInterval(refreshState, 4000);
+        </script>
+    </body>
 
-refreshCamera();
-refreshState();
-setInterval(refreshCamera, 6000);
-setInterval(refreshState, 4000);
-</script>
-</body>
 </html>
-
-
-
