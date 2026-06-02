@@ -13,9 +13,7 @@ CORS(app)
 px = Picarx()
 
 LOW_RES = (640, 480)
-HIGH_RES = (1280, 720)
 camera_lock = threading.Lock()
-camera_size = LOW_RES
 
 Vilib.camera_start(vflip=False, hflip=False, size=LOW_RES)
 time.sleep(10)
@@ -56,20 +54,6 @@ VOICES = {
 }
 
 
-def set_camera_size(size):
-    """Restart the camera when switching resolutions; Vilib may ignore hot starts."""
-    global camera_size
-    if camera_size == size:
-        return
-    try:
-        if hasattr(Vilib, "camera_close"):
-            Vilib.camera_close()
-            time.sleep(1.5)
-    except Exception as e:
-        print(f"camera close before resize failed: {e}")
-    Vilib.camera_start(vflip=False, hflip=False, size=size)
-    time.sleep(1.0)
-    camera_size = size
 
 
 def photo_path(name):
@@ -86,13 +70,10 @@ def photo_path(name):
 
 @app.route("/camera", methods=["GET"])
 def get_camera():
-    hires = request.args.get("hires", "false").lower() == "true"
-    size = HIGH_RES if hires else LOW_RES
     acquired = camera_lock.acquire(timeout=8)
     if not acquired:
         return jsonify({"error": "camera busy"}), 503
     try:
-        set_camera_size(size)
         Vilib.take_photo("current")
         time.sleep(0.5)
         path = photo_path("current")
@@ -100,8 +81,7 @@ def get_camera():
             response = Response(f.read(), mimetype="image/jpeg")
     finally:
         camera_lock.release()
-    response.headers["X-Camera-Mode"] = "hires" if hires else "lowres"
-    response.headers["X-Camera-Requested-Size"] = f"{size[0]}x{size[1]}"
+    response.headers["X-Camera-Mode"] = "lowres"
     response.headers["X-Camera-File"] = str(path)
     return response
 
@@ -755,7 +735,7 @@ def live():
     <body>
         <section>
             <figure>
-                <img src="/camera?hires=false" />
+                <img src="/camera" />
             </figure>
             <div class="log-panel">
                 <div class="driver">Driver: none</div>
@@ -800,7 +780,7 @@ def live():
 
             function refreshCamera() {
                 const img = document.querySelector(\'img\');
-                img.src = \'/camera?hires=false&t=\' + Date.now();
+                img.src = \'/camera&t=\' + Date.now();
             }
 
             function refreshLog() {
