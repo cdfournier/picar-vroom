@@ -27,17 +27,6 @@ Then view the image:
 view /tmp/view.jpg
 ```
 
-**Resolution modes:**
-- Default: 640x480 low-res (faster travel navigation)
-- High res: add `?hires=true` for close work and observation
-
-```bash
-# High res for close work
-curl -s "https://underfed-author-darling.ngrok-free.dev/camera?hires=true" \
-  -H "ngrok-skip-browser-warning: true" \
-  -o /tmp/view.jpg && echo "done"
-```
-
 ---
 
 ## Check distance ahead
@@ -173,7 +162,7 @@ https://underfed-author-darling.ngrok-free.dev/live
 Use **3-5 second strides**. Use the default low-res camera to save tokens. Short moves barely cover ground. Commit to the distance.
 
 ### Orientation mode — lost or reorienting
-Use **0.3-0.5 second steps**. Use `?hires=true` when you need detail. Check after each step. Don't overshoot.
+Use **0.3-0.5 second steps**. Check after each step. Don't overshoot.
 
 ---
 
