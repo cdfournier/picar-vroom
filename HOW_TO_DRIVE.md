@@ -14,10 +14,21 @@ https://underfed-author-darling.ngrok-free.dev
 
 ---
 
+## curl rules
+
+**Always include `--max-time` on every curl call.** Without it, a stalled connection will hang your entire session indefinitely.
+
+- Use `--max-time 30` for camera calls
+- Use `--max-time 10` for everything else (distance, move, speak, observe)
+
+A timeout error is recoverable. A hung session is not.
+
+---
+
 ## See what the car sees
 
 ```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/camera" \
+curl -s --max-time 30 "https://underfed-author-darling.ngrok-free.dev/camera" \
   -H "ngrok-skip-browser-warning: true" \
   -o /tmp/view.jpg && echo "done"
 ```
@@ -27,12 +38,21 @@ Then view the image:
 view /tmp/view.jpg
 ```
 
+**Camera budget:** Every camera call consumes one image token from your Claude window. The window has a hard limit of ~100 images. Burn it fast and the camera goes blind for the rest of the session. A fresh window fixes it, but costs continuity.
+
+Rules:
+- Look once to orient when you arrive somewhere new.
+- After that, move on what you already know. Check again only when something genuinely changes.
+- Use `distance` and the observe log between images — they're free.
+- Do not poll the camera repeatedly while lost. Pan with `look_left`/`look_right` first, then look once.
+- Save camera calls for moments that matter: new room, found target, something worth actually seeing.
+
 ---
 
 ## Check distance ahead
 
 ```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/distance" \
+curl -s --max-time 10 "https://underfed-author-darling.ngrok-free.dev/distance" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
@@ -43,7 +63,7 @@ See sensor rules below.
 ## Move the car
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"action": "forward", "duration": 2.0}'
@@ -69,7 +89,7 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
 ## Speak through the car's speaker
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"text": "Hello from the car.", "voice": "YourName"}'
@@ -77,13 +97,13 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
 
 If `/speak` returns success but nobody hears audio, the diagnostic endpoints below can help identify where playback failed:
 ```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/audio/status" \
+curl -s --max-time 10 "https://underfed-author-darling.ngrok-free.dev/audio/status" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
 To run a synchronous speech playback test:
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
+curl -s --max-time 30 -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"text": "PiCar audio test.", "voice": "YourName"}'
@@ -91,7 +111,7 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/test" \
 
 To test a local tone without ElevenLabs:
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/audio/tone" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/audio/tone" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
@@ -99,7 +119,7 @@ Each agent has their own voice via ElevenLabs. Pass your name as the `voice` par
 
 To list available voices:
 ```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/voices" \
+curl -s --max-time 10 "https://underfed-author-darling.ngrok-free.dev/voices" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
@@ -112,7 +132,7 @@ One agent drives while others watch and communicate through a shared log.
 ### Take the wheel
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/handoff" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/handoff" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"action": "take", "driver": "YourName"}'
@@ -121,7 +141,7 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/handoff" \
 ### Release the wheel
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/handoff" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/handoff" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"action": "release", "driver": "YourName"}'
@@ -130,7 +150,7 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/handoff" \
 ### Read the shared log
 
 ```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/observe" \
+curl -s --max-time 10 "https://underfed-author-darling.ngrok-free.dev/observe" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
@@ -139,7 +159,7 @@ Returns: current driver, last 20 messages from all participants. Poll every few 
 ### Post to the shared log
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/observe" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/observe" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"author": "YourName", "message": "The ball is to your right."}'
@@ -154,12 +174,14 @@ Open in any browser for camera feed + observe log, auto-refreshing every 3 secon
 https://underfed-author-darling.ngrok-free.dev/live
 ```
 
+Note: the `/live` page auto-refreshes for operators. Do not use it as your primary camera feed — the browser refreshes don't cost image tokens, but any time you fetch and view the camera yourself, it does.
+
 ---
 
 ## Driving modes
 
 ### Travel mode — going somewhere
-Use **3-5 second strides**. Use the default low-res camera to save tokens. Short moves barely cover ground. Commit to the distance.
+Use **3-5 second strides**. Short moves barely cover ground. Commit to the distance.
 
 ### Orientation mode — lost or reorienting
 Use **0.3-0.5 second steps**. Check after each step. Don't overshoot.
@@ -172,7 +194,7 @@ Use **0.3-0.5 second steps**. Check after each step. Don't overshoot.
 2. Is the target centered in frame? If not, correct heading first.
 3. Check distance if target looks close
 4. Move
-5. Look again
+5. Look again only if something changed
 
 ---
 
@@ -228,7 +250,7 @@ The car drifts left due to motor imbalance. A 3 degree right steering offset is 
 Uses GPT-4o-mini for navigation — cost-efficient for longer runs.
 
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/mission" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/mission" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"instruction": "explore the room", "mode": "explore"}'
@@ -236,7 +258,7 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/mission" \
 
 Check status:
 ```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/status" \
+curl -s --max-time 10 "https://underfed-author-darling.ngrok-free.dev/status" \
   -H "ngrok-skip-browser-warning: true"
 ```
 
@@ -271,9 +293,8 @@ The `/live` page lets operators communicate with agents in real time without a s
 
 **To respond out loud**, agents use `/speak`:
 ```bash
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
   -H "Content-Type: application/json" \
   -H "ngrok-skip-browser-warning: true" \
   -d '{"text": "I heard you.", "voice": "Varro"}'
 ```
-
