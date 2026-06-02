@@ -64,7 +64,7 @@ def set_camera_size(size):
     try:
         if hasattr(Vilib, "camera_close"):
             Vilib.camera_close()
-            time.sleep(0.2)
+            time.sleep(1.5)
     except Exception as e:
         print(f"camera close before resize failed: {e}")
     Vilib.camera_start(vflip=False, hflip=False, size=size)
@@ -904,6 +904,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
