@@ -88,13 +88,18 @@ def photo_path(name):
 def get_camera():
     hires = request.args.get("hires", "false").lower() == "true"
     size = HIGH_RES if hires else LOW_RES
-    with camera_lock:
+    acquired = camera_lock.acquire(timeout=8)
+    if not acquired:
+        return jsonify({"error": "camera busy"}), 503
+    try:
         set_camera_size(size)
         Vilib.take_photo("current")
         time.sleep(0.5)
         path = photo_path("current")
         with open(path, "rb") as f:
             response = Response(f.read(), mimetype="image/jpeg")
+    finally:
+        camera_lock.release()
     response.headers["X-Camera-Mode"] = "hires" if hires else "lowres"
     response.headers["X-Camera-Requested-Size"] = f"{size[0]}x{size[1]}"
     response.headers["X-Camera-File"] = str(path)
