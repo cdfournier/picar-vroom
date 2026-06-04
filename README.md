@@ -154,14 +154,15 @@ The Pi uses NetworkManager. Add networks and set priorities so the car roams bet
 
 ### Add a hotspot
 
+Avoid SSIDs with apostrophes — they cause nmcli matching failures. Use a plain name like "Rover".
+
 Turn on the hotspot first, then:
 
 ```bash
-sudo nmcli dev wifi rescan && sleep 3 && sudo nmcli dev wifi list
-sudo nmcli dev wifi connect "Your Hotspot Name" password "YOUR_PASSWORD"
+sudo nmcli connection add type wifi con-name "hotspot" ifname wlan0 \
+  ssid "YourHotspotName" wifi-sec.key-mgmt wpa-psk wifi-sec.psk 'YOUR_PASSWORD' \
+  connection.autoconnect yes
 ```
-
-> If the SSID contains an apostrophe, use the BSSID (MAC address) from the scan results instead.
 
 ### Set network priorities
 
@@ -190,7 +191,7 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/camera` | GET | JPEG image (`?hires=true` for high-resolution close work) |
+| `/camera` | GET | JPEG image (640x480) |
 | `/distance` | GET | Ultrasonic sensor reading in cm |
 | `/move` | POST | Move or look |
 | `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
