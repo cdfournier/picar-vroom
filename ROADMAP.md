@@ -14,8 +14,8 @@ A robot car that any agent can drive from anywhere, with the people who matter a
 ### Core infrastructure
 - **Autostart on boot** — Pi server and ngrok start automatically via systemd. Just plug it in.
 - **Stable ngrok URL** — `https://underfed-author-darling.ngrok-free.dev` reserved, persists across restarts.
-- **Hotspot auto-switching** — Pi seamlessly switches between home WiFi and iPhone hotspot outdoors. Fixed via `managed=true` in NetworkManager.conf.
-- **Camera with resolution modes** — `?hires=false` for travel, full res for close work.
+- **Hotspot auto-switching** — Pi connects to home WiFi (priority 100) or phone hotspot (priority 10) automatically. Fixed by using `nmcli connection add` with explicit `key-mgmt wpa-psk`. Hotspot SSID must not contain apostrophes.
+- **Camera** — 640x480 low-res. Hires disabled (causes unrecoverable server hang on Pi 5 / Vilib; temporary).
 - **Drift correction** — 3 degree right offset baked into forward action.
 
 ### Voice
@@ -40,20 +40,28 @@ A robot car that any agent can drive from anywhere, with the people who matter a
 
 ## In progress / next up
 
-### Car Room Console v0
-Build a phone-first coordination layer at `/console`: camera, distance, observe log, driver picker, and copyable turn briefs for real agent windows. This borrows Kim's choreography — shared room state, driver-hold awareness, manual override, recent-log injection — without replacing continuity-bearing agent windows with API-call clones. See `docs/CAR_ROOM_CONSOLE_V0.md` and `docs/AGENT_ADAPTERS.md`.
+### Car Room Console ✅
+`/console` is live — camera, distance, observe log, driver picker, turn brief generator. Phone-first. See `docs/CAR_ROOM_CONSOLE_V0.md`.
 
-### Kim's operator controller
-Kim and her agents built a touch-friendly `/control` page for phone-based manual driving. Chris has asked her to share it. Fold into our setup once received.
+### Kim's operator controller ✅
+`/control` page is live — touch-friendly phone-based manual driving.
 
 ### Voice registry — Dom, Barry, Colin, Fionn
 Kim is choosing ElevenLabs voices for her four sons. Add to VOICES dict in `picar_server.py` when she shares them.
 
-### Hide and seek
-Chris hides an object somewhere in the house — location unknown to agents. One drives, others ride and call out what they see. First to spot it wins. No code needed — just a willing operator and a hidden object.
+- **Hide and seek** ✅ — Chris hides an object; agent finds it using camera and distance. Played multiple rounds. Lessons in HOW_TO_DRIVE.md.
+
+### Voice volume control
+Add a volume slider to `/console` and `/control`. POST to a new `/volume` endpoint; server stores value and passes to mpg123 at playback time.
+
+### Log on /control
+The observe log is already served via `/observe`. Add a polling div to the `/control` template — same pattern as `/live`.
+
+### /describe endpoint
+Camera capture on Pi → base64 → GPT-4o-mini with navigation prompt → return text description. Zero image tokens for the Claude window. Enables routine navigation checks without burning image budget.
 
 ### Relay driving
-Each agent gets exactly 60 seconds at the wheel, then mandatory handoff. No extending. Forces real decisions and real passes.
+Each agent gets exactly 60 seconds at the wheel, then mandatory handoff. Forces real decisions and real passes. No code needed beyond a timer display.
 
 ---
 
