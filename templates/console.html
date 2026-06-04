@@ -380,7 +380,7 @@
 
     <body>
         <div id="camera-panel">
-            <img id="cam-img" src="/camera?hires=false" alt="camera" />
+            <img id="cam-img" src="/camera" alt="camera" />
             <div class="cam-status" id="cam-status">loading...</div>
         </div>
         <div id="log-panel">
@@ -463,7 +463,7 @@
                     document.getElementById("cam-status").textContent = "Camera unavailable";
                     state.camOk = false;
                 };
-                tImg.src = "/camera?hires=false&t=" + Date.now();
+                tImg.src = "/camera?t=" + Date.now();
             }
 
             function refreshState() {
@@ -518,6 +518,7 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 
 Ngrok URL: https://underfed-author-darling.ngrok-free.dev
 Always include: -H "ngrok-skip-browser-warning: true"
+Always include: --max-time 30 for camera, --max-time 10 for everything else. Omitting it will hang your session.
 
 KEY ENDPOINTS:
   POST /drive      — {"angle": -35 to 35, "direction": "forward|backward", "speed": 1-50, "duration": 0-5}
@@ -545,7 +546,7 @@ RECENT RIDE LOG:
 ${recentLog}
 
 TO JOIN THE QUEUE:
-  curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/queue" \
+  curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/queue" \
     -H "Content-Type: application/json" \
     -H "ngrok-skip-browser-warning: true" \
     -d '{"action": "join", "name": "YourName", "intention": "where you want to go"}'
