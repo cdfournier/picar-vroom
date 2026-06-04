@@ -85,15 +85,9 @@ Rules:
 
 ### `GET /camera`
 
-Returns JPEG. Supports:
-
-```text
-/camera?hires=false
-/camera?hires=true
-```
+Returns JPEG (640x480). Hires is disabled.
 
 Known response headers when successful:
-
 - `X-Camera-Mode`
 - `X-Camera-Requested-Size`
 - `X-Camera-File`
@@ -178,11 +172,6 @@ Show:
 ### Camera
 
 Show low-res camera by default. Add a refresh button.
-
-Optional:
-
-- a "hi-res once" button for close inspection
-- if hi-res times out, fall back to low-res and mark hi-res stale
 
 ### Ride Log
 
