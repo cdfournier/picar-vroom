@@ -20,6 +20,7 @@ time.sleep(10)
 Vilib.take_photo("warmup")
 
 SPEED = 50
+VOLUME = 32768  # mpg123 scale factor: 0 (silent) to 32768 (full volume)
 mission_log = []
 current_mission = None
 observe_log = []
@@ -236,7 +237,7 @@ def run_audio_command(command, engine, source):
 def audio_file_command(path):
     if AUDIO_PLAYER == "mpg123":
         # Use robothat ALSA device directly -- matches pcm.!default in asound.conf
-        return [AUDIO_PLAYER, "-a", "robothat", path]
+        return [AUDIO_PLAYER, "-a", "robothat", "-f", str(VOLUME), path]
     if AUDIO_PLAYER == "sox":
         return [AUDIO_PLAYER, path, "-t", AUDIO_OUTPUT, AUDIO_DEVICE]
     return [AUDIO_PLAYER, "-q", path]
@@ -249,6 +250,16 @@ def play_file(path, engine):
 @app.route("/audio/status", methods=["GET"])
 def audio_status_route():
     return jsonify(audio_status)
+
+
+@app.route("/volume", methods=["GET", "POST"])
+def volume_route():
+    global VOLUME
+    if request.method == "POST":
+        data = request.get_json(force=True)
+        val = int(data.get("volume", VOLUME))
+        VOLUME = max(0, min(32768, val))
+    return jsonify({"volume": VOLUME, "percent": round(VOLUME / 32768 * 100)})
 
 
 @app.route("/audio/test", methods=["POST"])
