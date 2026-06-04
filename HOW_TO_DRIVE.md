@@ -231,7 +231,7 @@ Formula: `duration = target_distance_feet × 1.0 seconds`
 
 ## Drift correction
 
-The car drifts left due to motor imbalance. A 3 degree right steering offset is already baked into forward. If you notice continued drift: target drifts left → steer right. Target drifts right → steer left.
+The car drifts left due to motor imbalance. A 2 degree right steering offset is baked into both `/move` forward and `/drive`. Tested June 4, 2026: +3 overcorrected right, 0 overcorrected left, +2 locked in. If you notice continued drift: target drifts left → steer right. Target drifts right → steer left.
 
 ---
 
