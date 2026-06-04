@@ -375,6 +375,35 @@
                 gap: var(--space-2);
                 flex-wrap: wrap;
             }
+
+            .volume-row {
+                display: flex;
+                align-items: center;
+                gap: var(--space-2);
+            }
+
+            .volume-row label {
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                color: var(--color-text-dim);
+                white-space: nowrap;
+            }
+
+            .volume-row input[type=range] {
+                flex: 1;
+                min-width: 6rem;
+                accent-color: var(--color-accent);
+            }
+
+            #volume-val {
+                min-width: 2.5rem;
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                color: var(--color-text-dim);
+                text-align: right;
+            }
         </style>
     </head>
 
@@ -405,10 +434,10 @@
                     <button id="mic-btn" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)" onmousedown="startRecording(event)" onmouseup="stopRecording(event)">Hold to Talk</button>
                     <button class="btn btn-green" onclick="copyPrompt()">Copy Prompt</button>
                 </div>
-                <div class="prompt-row" style="align-items:center; gap:8px;">
-                    <label style="font-size:12px; color:var(--text-muted); white-space:nowrap;">Volume</label>
-                    <input type="range" id="volume" min="0" max="100" value="100" style="flex:1;">
-                    <span id="volume-val" style="font-size:12px; color:var(--text-muted); min-width:32px; text-align:right;">100%</span>
+                <div class="prompt-row volume-row">
+                    <label for="volume">Volume</label>
+                    <input type="range" id="volume" min="0" max="100" value="100">
+                    <span id="volume-val">100%</span>
                 </div>
             </div>
             <div id="log-entries"></div>
