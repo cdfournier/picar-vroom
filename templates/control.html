@@ -358,7 +358,7 @@
                 fetch('/volume', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ volume: Math.round(pct / 100 * 32768) })
+                    body: JSON.stringify({ volume: Math.round(pct / 100 * 65536) })
                 }).catch(() => {});
             });
 
