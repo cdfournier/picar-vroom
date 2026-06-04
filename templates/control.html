@@ -314,6 +314,11 @@
                 <input type="range" id="speed" min="10" max="50" value="30">
                 <span class="speed-val" id="speed-val">30</span>
             </div>
+            <div class="speed-section">
+                <label>Volume</label>
+                <input type="range" id="volume" min="0" max="100" value="100">
+                <span class="speed-val" id="volume-val">100</span>
+            </div>
             <div class="cam-section">
                 <button class="cam-btn" id="btn-pan-l">&#9664;</button>
                 <button class="cam-btn" id="btn-tilt-u">&#9650;</button>
@@ -336,9 +341,25 @@
             localStorage.setItem('picar-driver-name', myName);
             let hasWheel = false;
 
+            // Sync volume slider to server state on load
+            fetch('/volume').then(r => r.json()).then(d => {
+                document.getElementById('volume').value = d.percent;
+                document.getElementById('volume-val').textContent = d.percent;
+            }).catch(() => {});
+
             document.getElementById('speed').addEventListener('input', e => {
                 speed = parseInt(e.target.value);
                 document.getElementById('speed-val').textContent = speed;
+            });
+
+            document.getElementById('volume').addEventListener('change', e => {
+                const pct = parseInt(e.target.value);
+                document.getElementById('volume-val').textContent = pct;
+                fetch('/volume', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ volume: Math.round(pct / 100 * 32768) })
+                }).catch(() => {});
             });
 
             function api(path, body) {
