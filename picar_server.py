@@ -99,7 +99,7 @@ def move():
     duration = data.get("duration", 0.5)
 
     if action == "forward":
-        px.set_dir_servo_angle(0)
+        px.set_dir_servo_angle(1.5)
         px.forward(SPEED)
         time.sleep(duration)
         px.stop()
@@ -365,7 +365,7 @@ def drive():
     duration = max(0, min(5.0, float(data.get("duration", 0))))
     continuous = data.get("continuous", False)
 
-    px.set_dir_servo_angle(angle)  # no drift correction — test and adjust if needed
+    px.set_dir_servo_angle(angle + 1.5)  # +1.5 drift correction (was +3, overcorrected right; 0 overcorrected left)
     if direction == "forward":
         px.forward(speed)
     else:
