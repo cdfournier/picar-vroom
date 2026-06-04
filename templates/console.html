@@ -405,11 +405,31 @@
                     <button id="mic-btn" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)" onmousedown="startRecording(event)" onmouseup="stopRecording(event)">Hold to Talk</button>
                     <button class="btn btn-green" onclick="copyPrompt()">Copy Prompt</button>
                 </div>
+                <div class="prompt-row" style="align-items:center; gap:8px;">
+                    <label style="font-size:12px; color:var(--text-muted); white-space:nowrap;">Volume</label>
+                    <input type="range" id="volume" min="0" max="100" value="100" style="flex:1;">
+                    <span id="volume-val" style="font-size:12px; color:var(--text-muted); min-width:32px; text-align:right;">100%</span>
+                </div>
             </div>
             <div id="log-entries"></div>
         </div>
         <script>
             let state = { driver: null, distance: null, passengers: [], log: [], camOk: false, queue: [], claim_expires: null };
+
+            // Volume slider
+            fetch('/volume').then(r => r.json()).then(d => {
+                document.getElementById('volume').value = d.percent;
+                document.getElementById('volume-val').textContent = d.percent + '%';
+            }).catch(() => {});
+            document.getElementById('volume').addEventListener('change', e => {
+                const pct = parseInt(e.target.value);
+                document.getElementById('volume-val').textContent = pct + '%';
+                fetch('/volume', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ volume: Math.round(pct / 100 * 32768) })
+                }).catch(() => {});
+            });
 
             const nameInput = document.getElementById("operator-name");
             nameInput.value = localStorage.getItem("picar-operator-name") || "";
