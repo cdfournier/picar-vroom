@@ -20,7 +20,7 @@ time.sleep(10)
 Vilib.take_photo("warmup")
 
 SPEED = 50
-VOLUME = 32768  # mpg123 scale factor: 0 (silent) to 65536 (200% amplification)
+VOLUME = 65536  # mpg123 scale factor: 0 (silent) to 65536 (200% amplification)
 mission_log = []
 current_mission = None
 observe_log = []
