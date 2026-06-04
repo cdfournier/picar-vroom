@@ -20,7 +20,7 @@ time.sleep(10)
 Vilib.take_photo("warmup")
 
 SPEED = 50
-VOLUME = 32768  # mpg123 scale factor: 0 (silent) to 32768 (full volume)
+VOLUME = 32768  # mpg123 scale factor: 0 (silent) to 65536 (200% amplification)
 mission_log = []
 current_mission = None
 observe_log = []
@@ -258,8 +258,8 @@ def volume_route():
     if request.method == "POST":
         data = request.get_json(force=True)
         val = int(data.get("volume", VOLUME))
-        VOLUME = max(0, min(32768, val))
-    return jsonify({"volume": VOLUME, "percent": round(VOLUME / 32768 * 100)})
+        VOLUME = max(0, min(65536, val))
+    return jsonify({"volume": VOLUME, "percent": round(VOLUME / 65536 * 100)})
 
 
 @app.route("/audio/test", methods=["POST"])
