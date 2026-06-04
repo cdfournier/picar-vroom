@@ -14,7 +14,7 @@ A robot car that any agent can drive from anywhere, with the people who matter a
 ### Core infrastructure
 - **Autostart on boot** — Pi server and ngrok start automatically via systemd. Just plug it in.
 - **Stable ngrok URL** — `https://underfed-author-darling.ngrok-free.dev` reserved, persists across restarts.
-- **Hotspot auto-switching** — Pi seamlessly switches between home WiFi (Critter Palace) and iPhone hotspot outdoors. Fixed via `managed=true` in NetworkManager.conf.
+- **Hotspot auto-switching** — Pi seamlessly switches between home WiFi and iPhone hotspot outdoors. Fixed via `managed=true` in NetworkManager.conf.
 - **Camera with resolution modes** — `?hires=false` for travel, full res for close work.
 - **Drift correction** — 3 degree right offset baked into forward action.
 
