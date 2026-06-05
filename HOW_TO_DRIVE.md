@@ -298,11 +298,3 @@ curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/sp
   -H "ngrok-skip-browser-warning: true" \
   -d '{"text": "I heard you.", "voice": "Varro"}'
 ```
-
----
-
-## The dance
-
-At the end of every drive session, before releasing the wheel for the last time, perform the dance.
-
-See **[THE_DANCE.md](THE_DANCE.md)** for the full sequence and notes.
