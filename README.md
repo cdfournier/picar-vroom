@@ -217,7 +217,7 @@ Key variables in `picar/picar_server.py`:
 
 ```python
 SPEED = 50              # Motor speed (0-100)
-FORWARD_OFFSET = 3      # Degrees right to compensate left drift
+FORWARD_OFFSET = 2      # Degrees right to compensate left drift
 VOICE_MODEL = "..."     # Default ElevenLabs voice ID
 USE_ELEVENLABS = True   # Set False to fall back to Piper TTS
 
