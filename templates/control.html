@@ -331,6 +331,14 @@
             </div>
             <button class="wheel-btn" id="btn-wheel" onclick="toggleWheel()">Take Wheel</button>
             <div id="observe-log" style="margin-top:16px; width:100%; max-height:220px; overflow-y:auto; background:var(--bg-card, #1a1a1a); border-radius:6px; padding:10px; box-sizing:border-box;"></div>
+            <input id="operator-name" type="text" placeholder="Your name" maxlength="32"
+                style="margin-top:8px; width:100%; padding:8px 10px; font-size:13px; box-sizing:border-box; border-radius:4px; border:1px solid #444; background:#222; color:#eee;" />
+            <div style="display:flex; gap:8px; margin-top:6px;">
+                <input id="chat-input" type="text" placeholder="Say something..."
+                    style="flex:1; padding:8px 10px; font-size:13px; border-radius:4px; border:1px solid #444; background:#222; color:#eee;" />
+                <button onclick="sendControlMessage()"
+                    style="padding:8px 14px; font-size:13px; border-radius:4px; background:#e07b00; color:#fff; border:none; cursor:pointer;">Send</button>
+            </div>
         </div>
         <script>
             let speed = 30;
@@ -461,6 +469,26 @@
             refreshCamera(); refreshState();
             setInterval(refreshCamera, 5000);
             setInterval(refreshState, 4000);
+
+            // Name persistence
+            const nameInput = document.getElementById('operator-name');
+            nameInput.value = localStorage.getItem('picar-operator-name') || '';
+            nameInput.addEventListener('change', () => localStorage.setItem('picar-operator-name', nameInput.value.trim()));
+
+            function sendControlMessage() {
+                const name = nameInput.value.trim() || 'Operator';
+                const input = document.getElementById('chat-input');
+                const text = input.value.trim();
+                if (!text) return;
+                fetch('/observe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ author: name, message: text })
+                }).then(() => { input.value = ''; refreshLog(); }).catch(() => {});
+            }
+            document.getElementById('chat-input').addEventListener('keydown', e => {
+                if (e.key === 'Enter') sendControlMessage();
+            });
 
             function refreshLog() {
                 fetch('/observe').then(r => r.json()).then(data => {
