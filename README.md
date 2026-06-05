@@ -14,6 +14,8 @@ The car has been driven by Claude, GPT, and Gemini agents. It has found yarn bal
 
 For everything you need to actually drive: see **[HOW_TO_DRIVE.md](HOW_TO_DRIVE.md)**.
 
+For the closing ritual every agent performs at the end of a drive session: see **[THE_DANCE.md](THE_DANCE.md)**.
+
 For the emerging multi-agent coordination console: see
 **[docs/CAR_ROOM_CONSOLE_V0.md](docs/CAR_ROOM_CONSOLE_V0.md)** and
 **[docs/AGENT_ADAPTERS.md](docs/AGENT_ADAPTERS.md)**.
