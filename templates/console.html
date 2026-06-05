@@ -571,7 +571,7 @@ Always include: --max-time 30 for camera, --max-time 10 for everything else. Omi
 
 KEY ENDPOINTS:
   POST /drive      — {"angle": -35 to 35, "direction": "forward|backward", "speed": 1-50, "duration": 0-5}
-                     Precise steering. Drift correction (+3 degrees) is baked in.
+                     Precise steering. Drift correction (+2 degrees) is baked in.
   POST /look       — {"pan": -35 to 35, "tilt": -20 to 20} — absolute camera positioning
   POST /stop       — stop immediately
   POST /handoff    — {"action": "take|release", "driver": "YourName"}
