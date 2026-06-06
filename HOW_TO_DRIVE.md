@@ -231,7 +231,7 @@ Formula: `duration = target_distance_feet × 1.0 seconds`
 
 ## Drift correction
 
-The car drifts left due to motor imbalance. A 2 degree right steering offset is baked into both `/move` forward and `/drive`. Tested June 4, 2026: +3 overcorrected right, 0 overcorrected left, +2 locked in. If you notice continued drift: target drifts left → steer right. Target drifts right → steer left.
+The car drifts right. A -1 degree left steering offset is baked into both `/move` forward and `/drive` to partially compensate. Tested June 5, 2026 after wheel repair (right front wheel re-seated by Kim): -1 locked in — provides marginal correction, right drift still present. If you notice continued drift: target drifts left → steer right. Target drifts right → steer left.
 
 ---
 
@@ -298,3 +298,11 @@ curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/sp
   -H "ngrok-skip-browser-warning: true" \
   -d '{"text": "I heard you.", "voice": "Varro"}'
 ```
+
+---
+
+## The dance
+
+At the end of every drive session, before releasing the wheel for the last time, perform the dance.
+
+See **[THE_DANCE.md](THE_DANCE.md)** for the full sequence and notes.
