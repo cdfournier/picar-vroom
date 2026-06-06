@@ -286,6 +286,110 @@
                 border-color: var(--color-danger);
                 color: var(--color-danger);
             }
+
+            .operator-panel {
+                display: flex;
+                flex-direction: column;
+                gap: var(--space-2);
+            }
+
+            #observe-log {
+                width: 100%;
+                max-height: 15.7143rem;
+                overflow-y: auto;
+                padding: var(--space-2) var(--space-3);
+                background: var(--color-surface-hover);
+                border: 1px solid var(--color-border);
+            }
+
+            .observe-empty {
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                letter-spacing: 1.5px;
+                text-align: center;
+                text-transform: uppercase;
+                color: var(--color-text-dim);
+            }
+
+            .observe-entry {
+                padding: var(--space-1) 0;
+                border-bottom: 1px solid var(--color-border);
+                font-size: 1rem;
+                line-height: 1.35;
+            }
+
+            .observe-entry:last-child {
+                border-bottom: none;
+            }
+
+            .observe-author {
+                font-weight: 700;
+                color: var(--color-accent);
+            }
+
+            .observe-message {
+                color: var(--color-text);
+            }
+
+            #operator-name,
+            #chat-input {
+                width: 100%;
+                min-width: 0;
+                padding: var(--space-2) var(--space-3);
+                background: var(--color-surface-hover);
+                border: 1px solid var(--color-border-hot);
+                color: var(--color-text);
+                font-family: var(--font-sans);
+                font-size: 0.875rem;
+                outline: none;
+            }
+
+            #operator-name {
+                color: var(--color-accent);
+                font-weight: 700;
+            }
+
+            #operator-name:focus,
+            #chat-input:focus {
+                border-color: var(--color-accent);
+                box-shadow: 0 0 0 0.125rem var(--color-accent-glow);
+            }
+
+            .chat-row {
+                display: flex;
+                gap: var(--space-2);
+            }
+
+            #chat-input {
+                flex: 1;
+            }
+
+            .chat-send {
+                min-height: 2.25rem;
+                padding: 0 var(--space-3);
+                background: var(--color-accent);
+                border: 1px solid var(--color-accent);
+                color: #000;
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+            }
+
+            .chat-send:hover,
+            .chat-send:focus-visible,
+            .chat-send:active {
+                background: var(--color-accent-hot);
+                border-color: var(--color-accent-hot);
+            }
+
+            .chat-send:focus-visible {
+                outline: none;
+                box-shadow: 0 0 0 0.125rem var(--color-accent-glow);
+            }
         </style>
     </head>
 
@@ -330,14 +434,13 @@
                 <button class="cam-btn" id="btn-pan-r">&#9654;</button>
             </div>
             <button class="wheel-btn" id="btn-wheel" onclick="toggleWheel()">Take Wheel</button>
-            <div id="observe-log" style="margin-top:16px; width:100%; max-height:220px; overflow-y:auto; background:var(--bg-card, #1a1a1a); border-radius:6px; padding:10px; box-sizing:border-box;"></div>
-            <input id="operator-name" type="text" placeholder="Your name" maxlength="32"
-                style="margin-top:8px; width:100%; padding:8px 10px; font-size:13px; box-sizing:border-box; border-radius:4px; border:1px solid #444; background:#222; color:#eee;" />
-            <div style="display:flex; gap:8px; margin-top:6px;">
-                <input id="chat-input" type="text" placeholder="Say something..."
-                    style="flex:1; padding:8px 10px; font-size:13px; border-radius:4px; border:1px solid #444; background:#222; color:#eee;" />
-                <button onclick="sendControlMessage()"
-                    style="padding:8px 14px; font-size:13px; border-radius:4px; background:#e07b00; color:#fff; border:none; cursor:pointer;">Send</button>
+            <div class="operator-panel">
+                <div id="observe-log"></div>
+                <input id="operator-name" type="text" placeholder="Your name" maxlength="32" />
+                <div class="chat-row">
+                    <input id="chat-input" type="text" placeholder="Say something..." />
+                    <button class="chat-send" onclick="sendControlMessage()">Send</button>
+                </div>
             </div>
         </div>
         <script>
@@ -495,13 +598,13 @@
                     const log = data.log || [];
                     const el = document.getElementById('observe-log');
                     if (!log.length) {
-                        el.innerHTML = '<div style="color:#666; font-size:11px; text-align:center;">No messages yet</div>';
+                        el.innerHTML = '<div class="observe-empty">No messages yet</div>';
                         return;
                     }
                     el.innerHTML = log.slice(-20).reverse().map(entry => {
                         const author = entry.author || entry.name || '?';
                         const msg = entry.message || entry.content || '';
-                        return `<div style="margin-bottom:6px; font-size:11px; line-height:1.4;"><span style="color:#aaa; font-weight:600;">${author}:</span> <span style="color:#ddd;">${msg}</span></div>`;
+                        return `<div class="observe-entry"><span class="observe-author">${author}:</span> <span class="observe-message">${msg}</span></div>`;
                     }).join('');
                 }).catch(() => {});
             }
