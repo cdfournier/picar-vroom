@@ -331,7 +331,6 @@
                 color: var(--color-text);
             }
 
-            #operator-name,
             #chat-input {
                 width: 100%;
                 min-width: 0;
@@ -344,12 +343,6 @@
                 outline: none;
             }
 
-            #operator-name {
-                color: var(--color-accent);
-                font-weight: 700;
-            }
-
-            #operator-name:focus,
             #chat-input:focus {
                 border-color: var(--color-accent);
                 box-shadow: 0 0 0 0.125rem var(--color-accent-glow);
@@ -435,12 +428,11 @@
             </div>
             <button class="wheel-btn" id="btn-wheel" onclick="toggleWheel()">Take Wheel</button>
             <div class="operator-panel">
-                <div id="observe-log"></div>
-                <input id="operator-name" type="text" placeholder="Your name" maxlength="32" />
                 <div class="chat-row">
                     <input id="chat-input" type="text" placeholder="Say something..." />
                     <button class="chat-send" onclick="sendControlMessage()">Send</button>
                 </div>
+                <div id="observe-log"></div>
             </div>
         </div>
         <script>
@@ -573,13 +565,8 @@
             setInterval(refreshCamera, 5000);
             setInterval(refreshState, 4000);
 
-            // Name persistence
-            const nameInput = document.getElementById('operator-name');
-            nameInput.value = localStorage.getItem('picar-operator-name') || '';
-            nameInput.addEventListener('change', () => localStorage.setItem('picar-operator-name', nameInput.value.trim()));
-
             function sendControlMessage() {
-                const name = nameInput.value.trim() || 'Operator';
+                const name = myName || localStorage.getItem('picar-operator-name') || 'Operator';
                 const input = document.getElementById('chat-input');
                 const text = input.value.trim();
                 if (!text) return;
