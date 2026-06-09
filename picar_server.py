@@ -12,10 +12,10 @@ app = Flask(__name__)
 CORS(app)
 px = Picarx()
 
-LOW_RES = (640, 480)
+
 camera_lock = threading.Lock()
 
-Vilib.camera_start(vflip=False, hflip=False, size=LOW_RES)
+Vilib.camera_start(vflip=False, hflip=False, size=(1280, 960))
 time.sleep(10)
 Vilib.take_photo("warmup")
 
@@ -900,6 +900,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
