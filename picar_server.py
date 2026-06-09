@@ -445,12 +445,14 @@ def observe_post():
     author = data.get("author", "unknown")
     message = data.get("message", "")
     if message:
-        observe_log.append({"author": author, "message": message})
+        observe_log.append({"author": author, "message": message, "ts": time.time()})
         if len(observe_log) > 100:
             observe_log = observe_log[-100:]
-        # Auto-register anyone who posts as a passenger
-        if author and author != "system" and author not in passenger_list:
-            passenger_list.append(author)
+        # Update last_seen_at for any passenger who posts
+        for p in passenger_list:
+            if p["name"] == author:
+                p["last_seen_at"] = time.time()
+                break
     return jsonify({"ok": True})
 
 @app.route("/queue", methods=["GET"])
@@ -523,8 +525,8 @@ def handoff():
         wheel_available_since = None
         # Remove from queue if they were waiting
         driver_queue = [q for q in driver_queue if q["name"] != driver]
-        if driver and driver not in passenger_list:
-            passenger_list.append(driver)
+        if driver and not any(p["name"] == driver for p in passenger_list):
+            passenger_list.append({"name": driver, "joined_at": time.time(), "last_seen_at": time.time()})
         observe_log.append({"author": "system", "message": f"{driver} is now driving."})
     elif action == "release":
         observe_log.append({"author": "system", "message": f"{current_driver} has handed off the car."})
@@ -870,7 +872,18 @@ CLAIM_WINDOW_SECONDS = 30
 
 @app.route("/passengers", methods=["GET"])
 def get_passengers():
-    return jsonify({"driver": current_driver, "passengers": passenger_list})
+    now = time.time()
+    return jsonify({
+        "driver": current_driver,
+        "passengers": [
+            {
+                "name": p["name"],
+                "joined_ago": round(now - p["joined_at"]),
+                "last_seen_ago": round(now - p["last_seen_at"]),
+            }
+            for p in passenger_list
+        ]
+    })
 
 @app.route("/passengers", methods=["POST"])
 def update_passengers():
@@ -881,10 +894,16 @@ def update_passengers():
     if not name:
         return jsonify({"error": "name required"}), 400
     if action == "join":
-        if name not in passenger_list:
-            passenger_list.append(name)
+        if not any(p["name"] == name for p in passenger_list):
+            passenger_list.append({"name": name, "joined_at": time.time(), "last_seen_at": time.time()})
+            observe_log.append({"author": "system", "message": f"{name} joined the car."})
     elif action == "leave":
-        passenger_list = [p for p in passenger_list if p != name]
+        passenger_list = [p for p in passenger_list if p["name"] != name]
+        observe_log.append({"author": "system", "message": f"{name} left the car."})
+    elif action == "remove":
+        # Operator-initiated removal
+        passenger_list = [p for p in passenger_list if p["name"] != name]
+        observe_log.append({"author": "system", "message": f"{name} was removed from the car."})
     return jsonify({"ok": True, "passengers": passenger_list})
 
 
@@ -900,6 +919,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
