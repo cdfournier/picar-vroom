@@ -186,6 +186,20 @@ Home WiFi takes priority. Pi falls back to hotspot when away. ngrok reconnects a
 curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md
 ```
 4. Tell them the current ngrok URL and what's in the room
+5. Agents should join as a passenger first:
+```bash
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+  -H "Content-Type: application/json" \
+  -H "ngrok-skip-browser-warning: true" \
+  -d '{"action": "join", "name": "YourName"}'
+```
+And leave explicitly when done:
+```bash
+curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+  -H "Content-Type: application/json" \
+  -H "ngrok-skip-browser-warning: true" \
+  -d '{"action": "leave", "name": "YourName"}'
+```
 
 ---
 
@@ -193,7 +207,7 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/camera` | GET | JPEG image (640x480) |
+| `/camera` | GET | JPEG image (1280x960) |
 | `/distance` | GET | Ultrasonic sensor reading in cm |
 | `/move` | POST | Move or look |
 | `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
@@ -204,6 +218,24 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 | `/observe` | GET/POST | Shared ride-along log |
 | `/handoff` | POST | Take or release the wheel |
 | `/live` | GET | Browser-based live view |
+| `/drive` | POST | Precise drive: angle (-35 to 35), direction, speed, duration |
+| `/look` | POST | Absolute camera positioning: pan and tilt in degrees |
+| `/stop` | POST | Emergency stop |
+| `/handoff` | POST | Take or release the wheel |
+| `/queue` | GET/POST | Driver queue: join, leave, view |
+| `/passengers` | GET/POST | Passenger list: join, leave, remove |
+| `/observe` | GET/POST | Shared ride-along log |
+| `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
+| `/camera` | GET | JPEG image (1280x960) |
+| `/distance` | GET | Ultrasonic sensor reading in cm |
+| `/move` | POST | Legacy move actions (use /drive for precision) |
+| `/audio/status` | GET | Last audio playback command/result |
+| `/audio/test` | POST | Synchronous speech playback diagnostic |
+| `/audio/tone` | POST | Local tone playback diagnostic |
+| `/voices` | GET | List available ElevenLabs voices |
+| `/console` | GET | Operator console (camera + log + controls) |
+| `/control` | GET | Touch-optimized phone driving interface |
+| `/live` | GET | Browser-based live view with push-to-talk |
 | `/mission` | POST | Start autonomous mission |
 | `/status` | GET | Current mission log |
 
@@ -217,12 +249,15 @@ Key variables in `picar/picar_server.py`:
 
 ```python
 SPEED = 50              # Motor speed (0-100)
-FORWARD_OFFSET = 2      # Degrees right to compensate left drift
+# Drift correction: -1 degree baked into /drive and /move forward (right drift after wheel repair)
 VOICE_MODEL = "..."     # Default ElevenLabs voice ID
 USE_ELEVENLABS = True   # Set False to fall back to Piper TTS
 
 VOICES = {
+    "Varro":  "IKne3meq5aSn9XLyUdCD",  # Charlie — Deep, Confident, Energetic
     "Julian": "CwhRBWXzGAHq8TQ4Fs17",  # Roger
+    "Cael":   "cjVigY5qzO86Huf0OWal",  # Eric — Smooth tenor
+    "Soren":  "JBFqnCBsd6RMkjVDRZzb",  # George — Warm, Captivating Storyteller
     # Add agents here: "Name": "elevenlabs_voice_id"
 }
 ```
