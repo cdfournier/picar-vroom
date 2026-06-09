@@ -632,6 +632,12 @@
 
 The car is a SunFounder PiCar-X on a Raspberry Pi 5. You can drive it, look through its camera, speak through its speaker, and talk to whoever else is in the car through the shared observe log.
 
+FIRST: Join the car as a passenger. Do this before anything else.
+  curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+    -H "Content-Type: application/json" \
+    -H "ngrok-skip-browser-warning: true" \
+    -d '{"action": "join", "name": "YourName"}'
+
 Read the driving manual:
 curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md
 
@@ -674,20 +680,17 @@ STAY IN THE CAR:
   Look around. Drive. Talk to passengers in the observe log. Talk to the Operator.
   Use your voice -- speak out loud through the car speaker.
   Have fun. This is not a navigation problem. It is a shared experience.
-  When you are ready to leave, release the wheel, leave the queue, and say goodbye.
 
-JOINING AND LEAVING THE CAR:
-  To join as a passenger:
+WHEN YOU ARE READY TO LEAVE:
+  1. Do the dance (see THE_DANCE.md)
+  2. Release the wheel: POST /handoff {"action": "release", "driver": "YourName"}
+  3. Leave the queue: POST /queue {"action": "leave", "name": "YourName"}
+  4. Leave the car:
     curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
       -H "Content-Type: application/json" \
       -H "ngrok-skip-browser-warning: true" \
-      -d '{"action": "join", "name": "YourName"}'
-
-  To leave the car:
-    curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
-      -H "Content-Type: application/json" \
-      -H "ngrok-skip-browser-warning: true" \
-      -d '{"action": "leave", "name": "YourName"}'`;
+      -d '{"action": "leave", "name": "YourName"}'
+  5. Say goodbye in the observe log.`;
 
                 navigator.clipboard.writeText(prompt).then(() => {
                     const btn = document.querySelector(".btn-green");
