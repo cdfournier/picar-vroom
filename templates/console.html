@@ -404,6 +404,56 @@
                 color: var(--color-text-dim);
                 text-align: right;
             }
+
+            #passengers-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--space-1);
+                align-items: center;
+            }
+
+            .passenger-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: var(--space-1);
+                padding: 0 var(--space-2);
+                min-height: 1.5rem;
+                font-family: var(--font-mono);
+                font-size: 0.6875rem;
+                background: var(--color-surface-hover);
+                border: 1px solid var(--color-border-hot);
+                color: var(--color-text-dim);
+            }
+
+            .passenger-chip .chip-name {
+                color: var(--color-text);
+                font-weight: 700;
+            }
+
+            .passenger-chip .chip-time {
+                color: var(--color-text-faint);
+            }
+
+            .passenger-chip .chip-remove {
+                background: none;
+                border: none;
+                color: var(--color-text-faint);
+                cursor: pointer;
+                font-size: 0.75rem;
+                padding: 0 0 0 var(--space-1);
+                line-height: 1;
+                font-family: var(--font-mono);
+            }
+
+            .passenger-chip .chip-remove:hover {
+                color: var(--color-danger);
+            }
+
+            .no-passengers {
+                font-size: 0.75rem;
+                color: var(--color-text-faint);
+                font-family: var(--font-mono);
+            }
         </style>
     </head>
 
@@ -416,7 +466,8 @@
             <div id="status-bar">
                 <span class="badge driver" id="driver-badge"><span class="badge-label">Driver</span><span class="badge-value" id="driver-value">none</span></span>
                 <span class="badge ok" id="distance-badge"><span class="badge-label">Distance</span><span class="badge-value" id="distance-value">--</span></span>
-                <span class="status-meta" id="passengers-text">No passengers</span>
+                <span class="status-meta" id="passengers-text"></span>
+                <div id="passengers-list"></div>
                 <span class="status-meta queue" id="queue-text"></span>
                 <span class="status-meta claim" id="claim-text"></span>
                 <button class="btn btn-secondary wheel-button" id="take-wheel-btn" onclick="takeWheel()">Take Wheel</button>
@@ -433,6 +484,10 @@
                 <div class="prompt-row">
                     <button id="mic-btn" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)" onmousedown="startRecording(event)" onmouseup="stopRecording(event)">Hold to Talk</button>
                     <button class="btn btn-green" onclick="copyPrompt()">Copy Prompt</button>
+                </div>
+                <div class="prompt-row">
+                    <button class="btn btn-gray" onclick="joinCar()">Join Car</button>
+                    <button class="btn btn-gray" onclick="leaveCar()">Leave Car</button>
                 </div>
                 <div class="prompt-row volume-row">
                     <label for="volume">Volume</label>
@@ -547,7 +602,22 @@
 
                 fetch("/passengers").then(r => r.json()).then(data => {
                     state.passengers = data.passengers || [];
-                    document.getElementById("passengers-text").textContent = state.passengers.length > 0 ? "In the car: " + state.passengers.join(", ") : "No passengers";
+                    const list = document.getElementById("passengers-list");
+                    const label = document.getElementById("passengers-text");
+                    if (state.passengers.length === 0) {
+                        label.textContent = "";
+                        list.innerHTML = '<span class="no-passengers">No passengers</span>';
+                    } else {
+                        label.textContent = "";
+                        list.innerHTML = state.passengers.map(p => {
+                            const seenAgo = p.last_seen_ago < 60 ? p.last_seen_ago + "s" : Math.round(p.last_seen_ago / 60) + "m";
+                            return `<span class="passenger-chip">
+                                <span class="chip-name">${p.name}</span>
+                                <span class="chip-time">${seenAgo}</span>
+                                <button class="chip-remove" onclick="removePassenger('${p.name}')" title="Remove from car">✕</button>
+                            </span>`;
+                        }).join("");
+                    }
                 }).catch(() => { });
             }
 
@@ -578,14 +648,14 @@ KEY ENDPOINTS:
   GET  /observe    — shared ride log
   POST /queue      — {"action": "join|leave", "name": "YourName", "intention": "..."}
   GET  /queue      — current queue and claim window status
-  GET  /camera     — JPEG image (640x480)
+  GET  /camera     — JPEG image (1280x960)
   GET  /distance   — ultrasonic sensor in cm (-2 = open space)
 
 CURRENT STATE:
   Driver:     ${state.driver || "nobody"}
   Distance:   ${distStr}
   Camera:     ${state.camOk ? "available" : "unavailable"}
-  Passengers: ${(state.passengers || []).length > 0 ? state.passengers.join(", ") : "none"}
+  Passengers: ${(state.passengers || []).length > 0 ? state.passengers.map(p => p.name).join(", ") : "none"}
 
 DRIVER QUEUE:
 ${queueStr}${claimExp}
@@ -604,7 +674,20 @@ STAY IN THE CAR:
   Look around. Drive. Talk to passengers in the observe log. Talk to the Operator.
   Use your voice -- speak out loud through the car speaker.
   Have fun. This is not a navigation problem. It is a shared experience.
-  When you are ready to leave, release the wheel, leave the queue, and say goodbye.`;
+  When you are ready to leave, release the wheel, leave the queue, and say goodbye.
+
+JOINING AND LEAVING THE CAR:
+  To join as a passenger:
+    curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+      -H "Content-Type: application/json" \
+      -H "ngrok-skip-browser-warning: true" \
+      -d '{"action": "join", "name": "YourName"}'
+
+  To leave the car:
+    curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+      -H "Content-Type: application/json" \
+      -H "ngrok-skip-browser-warning: true" \
+      -d '{"action": "leave", "name": "YourName"}'`;
 
                 navigator.clipboard.writeText(prompt).then(() => {
                     const btn = document.querySelector(".btn-green");
@@ -612,6 +695,32 @@ STAY IN THE CAR:
                     btn.textContent = "Copied!";
                     setTimeout(() => btn.textContent = orig, 1500);
                 });
+            }
+
+            function removePassenger(name) {
+                fetch("/passengers", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "remove", name: name })
+                }).then(() => refreshState());
+            }
+
+            function joinCar() {
+                const name = nameInput.value.trim() || "Operator";
+                fetch("/passengers", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "join", name: name })
+                }).then(() => refreshState());
+            }
+
+            function leaveCar() {
+                const name = nameInput.value.trim() || "Operator";
+                fetch("/passengers", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "leave", name: name })
+                }).then(() => refreshState());
             }
 
             function sendMessage() {
