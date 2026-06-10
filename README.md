@@ -237,7 +237,7 @@ Key variables in `picar/picar_server.py`:
 
 ```python
 SPEED = 50              # Motor speed (0-100)
-# Drift correction: -1 degree baked into /drive and /move forward (right drift after wheel repair)
+# Drift correction: -10 degrees in software (hardware picar-x.conf dir_servo=12.0 — do NOT change conf)
 VOICE_MODEL = "..."     # Default ElevenLabs voice ID
 USE_ELEVENLABS = True   # Set False to fall back to Piper TTS
 
