@@ -53,23 +53,23 @@ sudo systemctl restart picar-server.service
 
 ```bash
 # Check car is live
-curl -s "https://underfed-author-darling.ngrok-free.dev/status" \
-  -H "ngrok-skip-browser-warning: true"
+curl -s "https://picar.blackcoffeeshoppe.com/status" \
+ 
 
 # Test distance sensor
-curl -s "https://underfed-author-darling.ngrok-free.dev/distance" \
-  -H "ngrok-skip-browser-warning: true"
+curl -s "https://picar.blackcoffeeshoppe.com/distance" \
+ 
 
 # Test voice
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/speak" \
+curl -s -X POST "https://picar.blackcoffeeshoppe.com/speak" \
   -H "Content-Type: application/json" \
-  -H "ngrok-skip-browser-warning: true" \
+  \
   -d '{"text": "Hello.", "voice": "Varro"}'
 
 # Move forward 2 seconds
-curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
+curl -s -X POST "https://picar.blackcoffeeshoppe.com/move" \
   -H "Content-Type: application/json" \
-  -H "ngrok-skip-browser-warning: true" \
+  \
   -d '{"action": "forward", "duration": 2.0}'
 ```
 
@@ -77,7 +77,7 @@ curl -s -X POST "https://underfed-author-darling.ngrok-free.dev/move" \
 
 ## Current ngrok URL
 ```
-https://underfed-author-darling.ngrok-free.dev
+https://picar.blackcoffeeshoppe.com
 ```
 *(Reserved free domain — stable across restarts)*
 
@@ -85,7 +85,7 @@ https://underfed-author-darling.ngrok-free.dev
 
 ## Live view (phone or browser)
 ```
-https://underfed-author-darling.ngrok-free.dev/live
+https://picar.blackcoffeeshoppe.com/live
 ```
 Includes: camera feed, observe log, operator text chat, push-to-talk microphone. Name saved in browser localStorage.
 
@@ -102,8 +102,8 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 
 2. Verify the car is live:
 ```bash
-curl -s "https://underfed-author-darling.ngrok-free.dev/distance" \
-  -H "ngrok-skip-browser-warning: true"
+curl -s "https://picar.blackcoffeeshoppe.com/distance" \
+ 
 ```
 
 3. Tell them: the ngrok URL, what's in the room, and that they're free to explore.
