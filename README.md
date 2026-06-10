@@ -188,16 +188,16 @@ curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRI
 4. Tell them the current ngrok URL and what's in the room
 5. Agents should join as a passenger first:
 ```bash
-curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
   -H "Content-Type: application/json" \
-  -H "ngrok-skip-browser-warning: true" \
+  \
   -d '{"action": "join", "name": "YourName"}'
 ```
 And leave explicitly when done:
 ```bash
-curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
   -H "Content-Type: application/json" \
-  -H "ngrok-skip-browser-warning: true" \
+  \
   -d '{"action": "leave", "name": "YourName"}'
 ```
 
