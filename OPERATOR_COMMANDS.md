@@ -7,12 +7,12 @@ The Pi auto-starts on power-up. Just plug it in and wait ~15 seconds.
 If you need to start or restart manually:
 ```bash
 sudo systemctl start picar-server.service
-sudo systemctl start picar-ngrok.service
+sudo systemctl start cloudflared.service
 ```
 
 Or restart both:
 ```bash
-sudo systemctl restart picar-server.service && sudo systemctl restart picar-ngrok.service
+sudo systemctl restart picar-server.service && sudo systemctl restart cloudflared.service
 ```
 
 ---
@@ -21,7 +21,7 @@ sudo systemctl restart picar-server.service && sudo systemctl restart picar-ngro
 
 ```bash
 sudo systemctl status picar-server.service
-sudo systemctl status picar-ngrok.service
+sudo systemctl status cloudflared.service
 ```
 
 ---
@@ -75,7 +75,7 @@ curl -s -X POST "https://picar.blackcoffeeshoppe.com/move" \
 
 ---
 
-## Current ngrok URL
+## Current tunnel URL
 ```
 https://picar.blackcoffeeshoppe.com
 ```
@@ -106,7 +106,7 @@ curl -s "https://picar.blackcoffeeshoppe.com/distance" \
  
 ```
 
-3. Tell them: the ngrok URL, what's in the room, and that they're free to explore.
+3. Tell them: the tunnel URL, what's in the room, and that they're free to explore.
 
 ---
 
