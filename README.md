@@ -40,7 +40,7 @@ For the emerging multi-agent coordination console: see
 - picarx (SunFounder car library)
 - elevenlabs (text to speech — natural, per-agent voices)
 - openai (for autonomous mode)
-- ngrok (remote tunnel)
+- cloudflared (Cloudflare Tunnel)
 
 ---
 
@@ -64,12 +64,13 @@ cd picar-x
 pip3 install flask flask-cors openai elevenlabs --break-system-packages
 ```
 
-ngrok:
+cloudflared:
 ```bash
-curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-sudo apt update && sudo apt install ngrok
-ngrok config add-authtoken YOUR_NGROK_TOKEN
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared
+chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/
+cloudflared tunnel login
+cloudflared tunnel create picar
+cloudflared tunnel route dns picar picar.blackcoffeeshoppe.com
 ```
 
 ### 4. Add your API keys
@@ -120,32 +121,19 @@ WantedBy=multi-user.target
 
 > The three audio Environment lines are required. Without them, systemd won't route audio to the HifiBerry and the speaker will be silent after a cold boot.
 
-Create the ngrok service:
+Install cloudflared as a service:
 ```bash
-sudo nano /etc/systemd/system/picar-ngrok.service
-```
-
-```ini
-[Unit]
-Description=PiCar ngrok Tunnel
-After=network.target picar-server.service
-Requires=picar-server.service
-
-[Service]
-User=YOUR_USERNAME
-ExecStart=/usr/local/bin/ngrok http 5000
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
+sudo mkdir -p /etc/cloudflared
+sudo cp ~/.cloudflared/config.yml /etc/cloudflared/
+sudo cp ~/.cloudflared/<tunnel-id>.json /etc/cloudflared/
+sudo cloudflared service install
 ```
 
 Enable and start:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable picar-server.service picar-ngrok.service
-sudo systemctl start picar-server.service picar-ngrok.service
+sudo systemctl enable picar-server.service cloudflared.service
+sudo systemctl start picar-server.service cloudflared.service
 ```
 
 ---
@@ -173,19 +161,19 @@ sudo nmcli con mod "netplan-wlan0-YourHomeNetwork" connection.autoconnect-priori
 sudo nmcli con mod "hotspot" connection.autoconnect-priority 10
 ```
 
-Home WiFi takes priority. Pi falls back to hotspot when away. ngrok reconnects automatically.
+Home WiFi takes priority. Pi falls back to hotspot when away. Cloudflare Tunnel reconnects automatically.
 
 ---
 
 ## Giving an agent the wheel
 
 1. Start the Pi (autostart handles the rest)
-2. Get the ngrok URL
+2. Get the tunnel URL: https://picar.blackcoffeeshoppe.com
 3. Share HOW_TO_DRIVE.md with the agent:
 ```bash
 curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md
 ```
-4. Tell them the current ngrok URL and what's in the room
+4. Tell them the tunnel URL (https://picar.blackcoffeeshoppe.com) and what's in the room
 5. Agents should join as a passenger first:
 ```bash
 curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
