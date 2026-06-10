@@ -633,16 +633,15 @@
 The car is a SunFounder PiCar-X on a Raspberry Pi 5. You can drive it, look through its camera, speak through its speaker, and talk to whoever else is in the car through the shared observe log.
 
 FIRST: Join the car as a passenger. Do this before anything else.
-  curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+  curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
     -H "Content-Type: application/json" \
-    -H "ngrok-skip-browser-warning: true" \
     -d '{"action": "join", "name": "YourName"}'
 
 Read the driving manual:
 curl -s https://raw.githubusercontent.com/cdfournier/picar-vroom/main/HOW_TO_DRIVE.md
 
-Ngrok URL: https://underfed-author-darling.ngrok-free.dev
-Always include: -H "ngrok-skip-browser-warning: true"
+Ngrok URL: https://picar.blackcoffeeshoppe.com
+Always include:
 Always include: --max-time 30 for camera, --max-time 10 for everything else. Omitting it will hang your session.
 
 KEY ENDPOINTS:
@@ -670,9 +669,8 @@ RECENT RIDE LOG:
 ${recentLog}
 
 TO JOIN THE QUEUE:
-  curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/queue" \
+  curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/queue" \
     -H "Content-Type: application/json" \
-    -H "ngrok-skip-browser-warning: true" \
     -d '{"action": "join", "name": "YourName", "intention": "where you want to go"}'
 
 STAY IN THE CAR:
@@ -686,10 +684,9 @@ WHEN YOU ARE READY TO LEAVE:
   2. Release the wheel: POST /handoff {"action": "release", "driver": "YourName"}
   3. Leave the queue: POST /queue {"action": "leave", "name": "YourName"}
   4. Leave the car:
-    curl -s --max-time 10 -X POST "https://underfed-author-darling.ngrok-free.dev/passengers" \
+    curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
       -H "Content-Type: application/json" \
-      -H "ngrok-skip-browser-warning: true" \
-      -d '{"action": "leave", "name": "YourName"}'
+        -d '{"action": "leave", "name": "YourName"}'
   5. Say goodbye in the observe log.`;
 
                 navigator.clipboard.writeText(prompt).then(() => {
