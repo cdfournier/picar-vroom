@@ -365,7 +365,7 @@ def drive():
     duration = max(0, min(5.0, float(data.get("duration", 0))))
     continuous = data.get("continuous", False)
 
-    px.set_dir_servo_angle(angle - 7)  # software drift correction (hardware picar-x.conf dir_servo=12.0 — do NOT change conf)
+    px.set_dir_servo_angle(angle - 8)  # software drift correction (hardware picar-x.conf dir_servo=12.0 — do NOT change conf)
     if direction == "forward":
         px.forward(speed)
     else:
