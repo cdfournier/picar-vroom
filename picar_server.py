@@ -365,7 +365,7 @@ def drive():
     duration = max(0, min(5.0, float(data.get("duration", 0))))
     continuous = data.get("continuous", False)
 
-    px.set_dir_servo_angle(angle - 1)  # -1 drift correction (right drift after wheel repair)
+    px.set_dir_servo_angle(angle - 3)  # -3 drift correction (right drift after wheel repair)
     if direction == "forward":
         px.forward(speed)
     else:
