@@ -362,7 +362,7 @@ def drive():
     angle = max(-35, min(35, int(data.get("angle", 0))))
     direction = data.get("direction", "forward")
     speed = max(1, min(50, int(data.get("speed", SPEED))))
-    duration = max(0, min(5.0, float(data.get("duration", 0))))
+    duration = max(0, min(20.0, float(data.get("duration", 0))))
     continuous = data.get("continuous", False)
 
     px.set_dir_servo_angle(angle - 3)  # -3 drift correction for right drift
