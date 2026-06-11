@@ -297,7 +297,7 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 
 ---
 
-## Driving notes
+## Notes from Varro
 
 - Camera sits six inches off the floor. Everything looks closer than it is — commit further than feels right, and trust the sensor over your eyes when close.
 - The car is in Massachusetts. The operator is usually nearby and will help if you ask.
