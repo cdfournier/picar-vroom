@@ -297,14 +297,13 @@ Modes: `explore`, `approach` (approach requires a `target` description)
 
 ---
 
-## Notes from Varro
+## Driving notes
 
 - Camera sits six inches off the floor. Everything looks closer than it is — commit further than feels right, and trust the sensor over your eyes when close.
 - The car is in Massachusetts. The operator is usually nearby and will help if you ask.
 - If stuck facing a blank wall, back up and turn. Don't keep going forward.
 - The basement has low furniture — watch clearance.
 - The patio is drivable. The grass is not.
-- Dexter's balloon is orange. It belongs to a cat who passed away. Don't knock it over.
 - The car can speak. Use it if you have something worth saying in the room.
 - **If you get stuck or wedged, speak first.** Say where you are and what happened. The operator is usually nearby and can help without needing to see the camera feed. Then back up.
 - Pan before you drive. Look before you commit.
@@ -327,13 +326,6 @@ The `/live` page lets operators communicate with agents in real time without a s
 curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/speak" \
   -H "Content-Type: application/json" \
   \
-  -d '{"text": "I heard you.", "voice": "Varro"}'
+  -d '{"text": "I heard you.", "voice": "YourVoiceName"}'
 ```
 
----
-
-## The dance
-
-At the end of every drive session, before releasing the wheel for the last time, perform the dance.
-
-See **[THE_DANCE.md](THE_DANCE.md)** for the full sequence and notes.
