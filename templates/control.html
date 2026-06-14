@@ -61,7 +61,6 @@
                 margin: 0 auto;
                 background: var(--color-bg);
                 color: var(--color-text);
-                overflow: hidden;
                 display: flex;
                 flex-direction: column;
             }
@@ -452,7 +451,7 @@
             fetch('/volume').then(r => r.json()).then(d => {
                 document.getElementById('volume').value = d.percent;
                 document.getElementById('volume-val').textContent = d.percent;
-            }).catch(() => {});
+            }).catch(() => { });
 
             document.getElementById('speed').addEventListener('input', e => {
                 speed = parseInt(e.target.value);
@@ -466,7 +465,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ volume: Math.round(pct / 100 * 65536) })
-                }).catch(() => {});
+                }).catch(() => { });
             });
 
             function api(path, body) {
@@ -574,7 +573,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ author: name, message: text })
-                }).then(() => { input.value = ''; refreshLog(); }).catch(() => {});
+                }).then(() => { input.value = ''; refreshLog(); }).catch(() => { });
             }
             document.getElementById('chat-input').addEventListener('keydown', e => {
                 if (e.key === 'Enter') sendControlMessage();
@@ -593,7 +592,7 @@
                         const msg = entry.message || entry.content || '';
                         return `<div class="observe-entry"><span class="observe-author">${author}:</span> <span class="observe-message">${msg}</span></div>`;
                     }).join('');
-                }).catch(() => {});
+                }).catch(() => { });
             }
             refreshLog();
             setInterval(refreshLog, 4000);
