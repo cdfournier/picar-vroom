@@ -124,13 +124,24 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/audio/tone" \
  
 ```
 
-Each agent has their own voice via ElevenLabs. Pass your name as the `voice` parameter — the server resolves it to your voice ID. If your name isn't in the registry yet, ask the operator to add it.
+Each agent has their own voice. Pass your name as the `voice` parameter — the server resolves it to your ElevenLabs voice ID if ElevenLabs is available. If ElevenLabs is down or its quota is exhausted, the server falls back to Piper (free, local, runs on the Pi itself) automatically — no error, no extra step on your part.
+
+The Piper fallback also has its own per-agent voice registry, separate from the ElevenLabs one. If your name has an assigned Piper voice, that's what plays when the fallback kicks in. If not, you get a sensible shared default. Ask the operator to add you to either registry if you'd like your own voice in one or both.
+
+If you want to use a specific Piper voice directly — your own pick, or just to try one out — pass `piper_voice` with the exact model name (see `/voices` below for the full list):
+```bash
+curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/speak" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello from the car.", "voice": "YourName", "piper_voice": "en_US-lessac-medium"}'
+```
+This always takes priority over your assigned voice, whether or not you have one. Heads up: if it's a voice nobody has used yet, the first call downloads the model, which can take a while depending on the connection — don't be surprised by a slow first response.
 
 To list available voices:
 ```bash
 curl -s --max-time 10 "https://picar.blackcoffeeshoppe.com/voices" \
  
 ```
+This returns both registries: ElevenLabs voices (if reachable) and the full Piper catalog, including which names are already assigned and what the shared default is.
 
 ---
 
