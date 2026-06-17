@@ -54,6 +54,13 @@ VOICES = {
     "Soren": "JBFqnCBsd6RMkjVDRZzb",  # George - Warm, Captivating Storyteller
 }
 
+# Agent Piper voice registry (used when ElevenLabs is unavailable/falls back)
+# Chosen by listening at https://rhasspy.github.io/piper-samples/, not assigned by default.
+PIPER_VOICES = {
+    "Varro": "en_US-norman-medium",  # chosen June 17, 2026 - clear, plain, unhurried
+}
+PIPER_DEFAULT_VOICE = "en_US-ryan-low"
+
 
 
 
@@ -276,7 +283,7 @@ def audio_tone():
     return jsonify(status)
 
 
-def speak_text(text, voice_param, wait=False):
+def speak_text(text, voice_param, wait=False, piper_voice_override=None):
     voice = VOICES.get(voice_param, voice_param)
     if not text:
         return jsonify({"error": "no text provided"}), 400
@@ -323,11 +330,15 @@ def speak_text(text, voice_param, wait=False):
             speaker_enabled, speaker_error = enable_robot_hat_speaker()
             from picarx.tts import Piper
             tts = Piper()
-            tts.set_model("en_US-ryan-low")
+            piper_voice = piper_voice_override or PIPER_VOICES.get(voice_param, PIPER_DEFAULT_VOICE)
+            if not tts.is_model_downloaded(piper_voice):
+                tts.download_model(piper_voice)
+            tts.set_model(piper_voice)
             tts.say(text)
             audio_status.update({
                 "ok": True,
                 "engine": "piper",
+                "voice": piper_voice,
                 "returncode": 0,
                 "stderr": speaker_error,
                 "speaker_enabled": speaker_enabled,
@@ -346,7 +357,7 @@ def speak_text(text, voice_param, wait=False):
     return jsonify({
         "ok": True,
         "text": text,
-        "voice": "en_US-ryan-low",
+        "voice": piper_voice_override or PIPER_VOICES.get(voice_param, PIPER_DEFAULT_VOICE),
         "engine": "piper",
         "playback": "started",
         "audio_status_url": "/audio/status",
@@ -416,20 +427,33 @@ def speak():
     data = request.get_json(force=True)
     text = data.get("text", "")
     voice_param = data.get("voice", VOICE_MODEL)
-    return speak_text(text, voice_param)
+    piper_voice_override = data.get("piper_voice")
+    return speak_text(text, voice_param, piper_voice_override=piper_voice_override)
 
 @app.route("/voices", methods=["GET"])
 def list_voices():
+    result = {}
     try:
         from elevenlabs.client import ElevenLabs
         from secret import ELEVENLABS_API_KEY
         el_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
         response = el_client.voices.search()
-        voices = [{"name": v.name, "voice_id": v.voice_id, "description": v.description} 
-                  for v in response.voices]
-        return jsonify({"voices": voices})
+        result["elevenlabs"] = [{"name": v.name, "voice_id": v.voice_id, "description": v.description}
+                                 for v in response.voices]
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        result["elevenlabs_error"] = str(e)
+    try:
+        from picarx.tts import Piper
+        tts = Piper()
+        result["piper"] = {
+            "available_models": tts.available_models(),
+            "assigned": PIPER_VOICES,
+            "default": PIPER_DEFAULT_VOICE,
+            "note": "Pass {\"piper_voice\": \"<model_name>\"} to /speak to use any available model directly, even if not pre-assigned. First use of a new model downloads it, which may be slow.",
+        }
+    except Exception as e:
+        result["piper_error"] = str(e)
+    return jsonify(result)
     
 @app.route("/observe", methods=["GET"])
 def observe():
@@ -919,6 +943,7 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
