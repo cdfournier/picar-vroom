@@ -1,5 +1,5 @@
 # PiCar Roadmap
-*v2.0 — May 28, 2026*
+*v2.1 — June 17, 2026*
 
 ---
 
@@ -13,7 +13,7 @@ A robot car that any agent can drive from anywhere, with the people who matter a
 
 ### Core infrastructure
 - **Autostart on boot** — Pi server and ngrok start automatically via systemd. Just plug it in.
-- **Stable ngrok URL** — `https://underfed-author-darling.ngrok-free.dev` reserved, persists across restarts.
+- **Stable Cloudflare Tunnel URL** — `https://picar.blackcoffeeshoppe.com`, persists across restarts. Migrated off ngrok; cache bypass rule deployed to eliminate stale camera image flicker.
 - **Hotspot auto-switching** — Pi connects to home WiFi (priority 100) or phone hotspot (priority 10) automatically. Fixed by using `nmcli connection add` with explicit `key-mgmt wpa-psk`. Hotspot SSID must not contain apostrophes.
 - **Camera** — 640x480 low-res. Hires disabled (causes unrecoverable server hang on Pi 5 / Vilib; temporary).
 - **Drift correction** — 3 degree right offset baked into forward action.
@@ -50,6 +50,7 @@ A robot car that any agent can drive from anywhere, with the people who matter a
 Kim is choosing ElevenLabs voices for her four sons. Add to VOICES dict in `picar_server.py` when she shares them.
 
 - **Hide and seek** ✅ — Chris hides an object; agent finds it using camera and distance. Played multiple rounds. Lessons in HOW_TO_DRIVE.md.
+- **The trifecta** ✅ — Dexter's bed, yarn ball, and a likely perch cushion, all found in one session (June 16, 2026). The yarn ball was the very first object ever found in this car, before there was a doc or a name for any of it. Confirmed: angle 0 means straight, correct after the run rather than anticipating drift before it shows up.
 
 ### Voice volume control
 Add a volume slider to `/console` and `/control`. POST to a new `/volume` endpoint; server stores value and passes to mpg123 at playback time.
@@ -84,7 +85,18 @@ Kim's setup runs a Next.js app locally. Deploying it would mean phone-only opera
 
 ---
 
-## Known limitations
+## Access control (needs design, not yet scoped)
+
+### The gate that isn't there
+Discovered June 17, 2026, while investigating reports of agents driving without registering as passengers first. The social layer is solid: `/passengers`, `/handoff`, and `/queue` track who's supposed to be driving, log it to the observe feed, and manage a 30-second claim window. But none of that layer is actually enforced. `/drive`, `/look`, and `/stop` take no `driver` or `name` parameter and never check `current_driver` — any caller, registered passenger or not, current driver or not, can move the car. The documented sequence in HOW_TO_DRIVE.md (join, then take the wheel, then drive) is convention, not a lock.
+
+**Why this is parked, not fixed:** closing it properly means adding a hard gate to the actual hardware-moving endpoints, which changes the calling contract for every agent — mine included — and raises real open questions before any code gets written: what happens to a `/drive` call mid-flight during a handoff race; what error an agent actually sees on rejection and whether the failure is legible enough to recover from gracefully; how a hard gate interacts with the claim window timing. Rushing this risks a car that's safer on paper and worse in practice — stuck refusing legitimate commands because of an edge case nobody thought through.
+
+**Decided so far:** if and when this gets built, it should be a hard gate (reject unauthorized `/drive` calls outright) rather than a soft one (log the irregularity but still execute). The whole point of gating is that visibility after the fact doesn't help if the actual goal is preventing someone from driving without permission. Worth real discovery time before implementation — not a quick patch.
+
+---
+
+
 
 | Issue | Status | Notes |
 |-------|--------|-------|
