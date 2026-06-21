@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh:*)",
+      "Read(//Users/chris/.ssh/**)",
+      "Bash(ssh-add:*)"
+    ]
+  }
+}
