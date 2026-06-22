@@ -62,36 +62,32 @@ See sensor rules below.
 
 ## Move the car
 
+### Preferred: `/drive` — precise control
+
+```bash
+curl -s --max-time 30 -X POST "https://picar.blackcoffeeshoppe.com/drive" \
+  -H "Content-Type: application/json" \
+  -d '{"angle": 0, "direction": "forward", "speed": 60, "duration": 3}'
+```
+
+| Parameter | Range | Default | Notes |
+|-----------|-------|---------|-------|
+| angle | -35 to 35 | 0 | Negative = left, positive = right. 0 = straight. |
+| direction | forward / backward | forward | |
+| speed | 1 to 100 | 60 | Default is 60. Max is 100 for burn-rubber moments. |
+| duration | 0 to 20 | 0 | Seconds. 0 = continuous until /stop. |
+
+### Legacy: `/move` — simple actions
+
 ```bash
 curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/move" \
   -H "Content-Type: application/json" \
-  \
   -d '{"action": "forward", "duration": 2.0}'
 ```
 
-### Available actions
+Available actions: `forward`, `backward`, `left`, `right`, `stop`, `look_left`, `look_right`, `look_up`, `look_down`, `look_reset`
 
-| Action | Description |
-|--------|-------------|
-| forward | Drive forward |
-| backward | Reverse |
-| left | Turn left while moving |
-| right | Turn right while moving |
-| stop | Stop all movement |
-| look_left | Pan camera left (~30 degrees) |
-| look_right | Pan camera right (~30 degrees) |
-| look_up | Tilt camera up (~30 degrees) |
-| look_down | Tilt camera down (~30 degrees) |
-| look_reset | Center camera (pan and tilt) |
-
-> **Prefer `/look` for camera positioning.** The `/move` look actions use fixed step sizes. `/look` gives you absolute pan and tilt in degrees:
-> ```bash
-> curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/look" \
->   -H "Content-Type: application/json" \
->   \
->   -d '{"pan": -20, "tilt": 10}'
-> ```
-> Pan: -35 (left) to 35 (right). Tilt: -20 (down) to 20 (up).
+Used by the autonomous mission system (`/mission`). For manual driving, prefer `/drive`.
 
 ---
 
@@ -256,7 +252,9 @@ Use **0.3-0.5 second steps**. Check after each step. Don't overshoot.
 
 ---
 
-## Speed and distance (tested May 20, 2026)
+## Speed and distance (tested May 20, 2026, speed table at SPEED=50)
+
+Default speed is **60**. Maximum speed is **100** (use sparingly — higher speeds reduce control).
 
 At SPEED=50: approximately 10-12 inches per second forward.
 
@@ -269,11 +267,16 @@ At SPEED=50: approximately 10-12 inches per second forward.
 
 Formula: `duration = target_distance_feet × 1.0 seconds`
 
+At higher speeds, distances will be proportionally greater. Re-test if precision matters.
+
 ---
 
 ## Drift correction
 
-The car drifts right. A -1 degree left steering offset is baked into both `/move` forward and `/drive` to partially compensate. Tested June 5, 2026 after wheel repair (right front wheel re-seated by Kim): -1 locked in — provides marginal correction, right drift still present. If you notice continued drift: target drifts left → steer right. Target drifts right → steer left.
+The car drifts right due to mechanical assembly asymmetry. A **-6 degree** left steering offset is baked into `/drive` to compensate (`px.set_dir_servo_angle(angle - 6)`). Calibrated June 22, 2026 after full SD card reflash and fresh servo calibration.
+
+**Steering rule: angle 0 means straight. Trust it. Correct after the run, not before.**
+If you want to go straight, use angle 0 and see what happens — don't pre-anticipate drift. If the car drifts, correct on the next move. Anticipating drift before it shows up compounds errors.
 
 ---
 
