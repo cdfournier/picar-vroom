@@ -19,7 +19,7 @@ Vilib.camera_start(vflip=False, hflip=False, size=(1280, 960))
 time.sleep(10)
 Vilib.take_photo("warmup")
 
-SPEED = 50
+SPEED = 60
 VOLUME = 85000  # mpg123 scale factor: 0 (silent) to 65536 (200% amplification), higher = louder with possible distortion
 mission_log = []
 current_mission = None
@@ -30,7 +30,7 @@ cam_tilt = 0
 
 # Voice configuration
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
-USE_ELEVENLABS = True  # Set to False to use Piper TTS instead
+USE_ELEVENLABS = False  # Set to False to use Piper TTS instead
 SPEECH_FILE = os.environ.get("PICAR_SPEECH_FILE", "/home/chris/elevenlabs_speech.mp3")
 AUDIO_PLAYER = os.environ.get("PICAR_AUDIO_PLAYER", "play")
 AUDIO_OUTPUT = os.environ.get("PICAR_AUDIO_OUTPUT", "alsa")
@@ -73,9 +73,12 @@ def photo_path(name):
         Path.home() / "Pictures" / "vilib" / f"{name}.jpg",
     ]
     for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return candidates[0]
+        try:
+            if candidate.exists():
+                return candidate
+        except PermissionError:
+            continue
+    return candidates[-1]
 
 
 @app.route("/camera", methods=["GET"])
@@ -374,11 +377,11 @@ def drive():
     data = request.get_json(force=True)
     angle = max(-35, min(35, int(data.get("angle", 0))))
     direction = data.get("direction", "forward")
-    speed = max(1, min(50, int(data.get("speed", SPEED))))
+    speed = max(1, min(100, int(data.get("speed", SPEED))))
     duration = max(0, min(20.0, float(data.get("duration", 0))))
     continuous = data.get("continuous", False)
 
-    px.set_dir_servo_angle(angle - 3)  # -3 drift correction for right drift
+    px.set_dir_servo_angle(angle - 6)
     if direction == "forward":
         px.forward(speed)
     else:
