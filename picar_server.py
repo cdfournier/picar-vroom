@@ -60,6 +60,7 @@ PIPER_VOICES = {
     "Varro": "en_US-norman-medium",  # chosen June 17, 2026 - clear, plain, unhurried
     "Cael": "en_US-ryan-medium",  # chosen June 17, 2026
     "Soren": "en_GB-northern_english_male-medium",  # chosen June 17, 2026
+    "Julian": "en_US-joe-medium",  # chosen July 6, 2026
 }
 PIPER_DEFAULT_VOICE = "en_US-ryan-low"
 

@@ -198,11 +198,11 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
 | `/camera` | GET | JPEG image (1280x960) |
 | `/distance` | GET | Ultrasonic sensor reading in cm |
 | `/move` | POST | Move or look |
-| `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
+| `/speak` | POST | Speak through onboard speaker (Piper by default; ElevenLabs optional) |
 | `/audio/status` | GET | Last audio playback command/result |
 | `/audio/test` | POST | Synchronous speech playback diagnostic |
 | `/audio/tone` | POST | Local tone playback diagnostic |
-| `/voices` | GET | List available ElevenLabs voices |
+| `/voices` | GET | List available and assigned TTS voices |
 | `/observe` | GET/POST | Shared ride-along log |
 | `/handoff` | POST | Take or release the wheel |
 | `/live` | GET | Browser-based live view |
@@ -213,14 +213,14 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
 | `/queue` | GET/POST | Driver queue: join, leave, view |
 | `/passengers` | GET/POST | Passenger list: join, leave, remove |
 | `/observe` | GET/POST | Shared ride-along log |
-| `/speak` | POST | Speak through onboard speaker (ElevenLabs) |
+| `/speak` | POST | Speak through onboard speaker (Piper by default; ElevenLabs optional) |
 | `/camera` | GET | JPEG image (1280x960) |
 | `/distance` | GET | Ultrasonic sensor reading in cm |
 | `/move` | POST | Legacy move actions (use /drive for precision) |
 | `/audio/status` | GET | Last audio playback command/result |
 | `/audio/test` | POST | Synchronous speech playback diagnostic |
 | `/audio/tone` | POST | Local tone playback diagnostic |
-| `/voices` | GET | List available ElevenLabs voices |
+| `/voices` | GET | List available and assigned TTS voices |
 | `/console` | GET | Operator console (camera + log + controls) |
 | `/control` | GET | Touch-optimized phone driving interface |
 | `/live` | GET | Browser-based live view with push-to-talk |
@@ -239,7 +239,7 @@ Key variables in `picar/picar_server.py`:
 SPEED = 50              # Motor speed (0-100)
 # Drift correction: -10 degrees in software (hardware picar-x.conf dir_servo=12.0 — do NOT change conf)
 VOICE_MODEL = "..."     # Default ElevenLabs voice ID
-USE_ELEVENLABS = True   # Set False to fall back to Piper TTS
+USE_ELEVENLABS = False  # Piper TTS is the default voice layer
 
 VOICES = {
     "Varro":  "IKne3meq5aSn9XLyUdCD",  # Charlie — Deep, Confident, Energetic
@@ -247,6 +247,13 @@ VOICES = {
     "Cael":   "cjVigY5qzO86Huf0OWal",  # Eric — Smooth tenor
     "Soren":  "JBFqnCBsd6RMkjVDRZzb",  # George — Warm, Captivating Storyteller
     # Add agents here: "Name": "elevenlabs_voice_id"
+}
+
+PIPER_VOICES = {
+    "Julian": "en_US-joe-medium",
+    "Varro": "en_US-norman-medium",
+    "Cael": "en_US-ryan-medium",
+    "Soren": "en_GB-northern_english_male-medium",
 }
 ```
 
