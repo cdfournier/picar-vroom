@@ -42,6 +42,18 @@ The car remains a trusted, operator-supervised system.
 - Route or autonomy policy: autonomous missions now use the same named-driver
   gate, but their higher-level navigation policy is a later academy lesson.
 
+## Known outdoor-readiness blocker: iPhone hotspot
+
+The PiCar has not yet successfully joined Chris's iPhone hotspot. The existing
+NetworkManager configuration documents a hotspot fallback, but that is not the
+same as a verified field connection.
+
+Do not treat outdoor driving as ready until a supervised check proves that the
+Pi can join the real iPhone hotspot, retain the Cloudflare route, and recover
+back to home Wi-Fi without manual repair. When we investigate, capture the
+actual `nmcli` state and connection logs first; do not guess at the failure
+mode from the old configuration.
+
 ## Safe next lessons
 
 1. Readiness check: camera, distance, connection, operator presence, and a
@@ -50,7 +62,7 @@ The car remains a trusted, operator-supervised system.
 3. Academy drills: indoor orientation, short controlled moves, handoff, and
    exit ritual.
 4. Outdoor readiness: network path, terrain constraints, range, and a
-   dedicated abort plan.
+   dedicated abort plan — beginning with the unverified iPhone hotspot path.
 
 The gate is intentionally small. It gives every later WHEELS feature something
 real to stand on without pretending the academy is already finished.
