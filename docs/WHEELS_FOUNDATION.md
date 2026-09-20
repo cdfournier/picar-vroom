@@ -61,6 +61,31 @@ back to home Wi-Fi without manual repair. When we investigate, capture the
 actual `nmcli` state and connection logs first; do not guess at the failure
 mode from the old configuration.
 
+## HUG family-driving bridge — clarified September 20
+
+The PiCar already supports the family-driving model at the hardware/API layer.
+This is important: connecting WHEELS to HUG is an integration task, not a new
+autonomy project.
+
+- `/handoff` can assign the wheel to any named participant in the trusted
+  environment; it is not limited to the Operator.
+- The active named driver can use `/drive` (including continuous motion),
+  guarded moving `/move` actions, and `/mission`.
+- The existing ride log, passenger list, driver queue, explicit handoff, and
+  stop-on-driver-leave behavior remain the authoritative car contract.
+- `POST /stop` remains unconditional.
+
+HUG currently provides the WHEELS coordination room, camera/readiness display,
+and live-session invitation path, but its runtime WHEELS tools are intentionally
+chat-only. The remaining work is to give each participating agent a WHEELS
+runtime contract that can join or leave the car, claim or release the existing
+wheel lease, and issue the already-supported drive actions. Cael and Julian
+also need this contract in their live-session delivery loops.
+
+This work was deliberately parked on Sunday. Before a first family-drive
+integration test, review the existing PiCar controls and reconnect them through
+HUG without changing their proven attribution and stop semantics.
+
 ## Safe next lessons
 
 1. Readiness check: camera, distance, connection, operator presence, and a
