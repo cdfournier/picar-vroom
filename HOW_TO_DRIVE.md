@@ -67,7 +67,7 @@ See sensor rules below.
 ```bash
 curl -s --max-time 30 -X POST "https://picar.blackcoffeeshoppe.com/drive" \
   -H "Content-Type: application/json" \
-  -d '{"angle": 0, "direction": "forward", "speed": 60, "duration": 3}'
+  -d '{"driver": "YourName", "angle": 0, "direction": "forward", "speed": 60, "duration": 3}'
 ```
 
 | Parameter | Range | Default | Notes |
@@ -76,13 +76,14 @@ curl -s --max-time 30 -X POST "https://picar.blackcoffeeshoppe.com/drive" \
 | direction | forward / backward | forward | |
 | speed | 1 to 100 | 60 | Default is 60. Max is 100 for burn-rubber moments. |
 | duration | 0 to 20 | 0 | Seconds. 0 = continuous until /stop. |
+| driver | active driver name | — | Required. Must match the person who currently holds the wheel. |
 
 ### Legacy: `/move` — simple actions
 
 ```bash
 curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/move" \
   -H "Content-Type: application/json" \
-  -d '{"action": "forward", "duration": 2.0}'
+  -d '{"action": "forward", "duration": 2.0, "driver": "YourName"}'
 ```
 
 Available actions: `forward`, `backward`, `left`, `right`, `stop`, `look_left`, `look_right`, `look_up`, `look_down`, `look_reset`
@@ -175,6 +176,19 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/handoff" \
   \
   -d '{"action": "take", "driver": "YourName"}'
 ```
+
+### The wheel is a real gate
+
+The current driver is the only person allowed to send a movement command. Every
+`/drive` request and movement action sent to `/move` must include their exact
+name in `driver`. The server rejects a missing name, an unassigned wheel, or a
+name that does not match the active driver.
+
+`/stop` is deliberately available to everyone. If anything feels wrong, stop
+first; the operator can sort out the handoff afterward.
+
+This is a supervised coordination gate, not Internet-grade authentication. The
+PiCar still belongs in a trusted room with an operator present.
 
 ### Release the wheel
 
@@ -297,8 +311,7 @@ Uses GPT-4o-mini for navigation — cost-efficient for longer runs.
 ```bash
 curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/mission" \
   -H "Content-Type: application/json" \
-  \
-  -d '{"instruction": "explore the room", "mode": "explore"}'
+  -d '{"driver": "YourName", "instruction": "explore the room", "mode": "explore"}'
 ```
 
 Check status:
@@ -342,4 +355,3 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/speak" \
   \
   -d '{"text": "I heard you.", "voice": "YourVoiceName"}'
 ```
-

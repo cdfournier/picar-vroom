@@ -87,12 +87,20 @@ Kim's setup runs a Next.js app locally. Deploying it would mean phone-only opera
 
 ## Access control (needs design, not yet scoped)
 
-### The gate that isn't there
-Discovered June 17, 2026, while investigating reports of agents driving without registering as passengers first. The social layer is solid: `/passengers`, `/handoff`, and `/queue` track who's supposed to be driving, log it to the observe feed, and manage a 30-second claim window. But none of that layer is actually enforced. `/drive`, `/look`, and `/stop` take no `driver` or `name` parameter and never check `current_driver` — any caller, registered passenger or not, current driver or not, can move the car. The documented sequence in HOW_TO_DRIVE.md (join, then take the wheel, then drive) is convention, not a lock.
+### Supervised wheel gate ✅
+Discovered June 17 and built as the first WHEELS foundation on September 20.
+`/drive`, moving `/move` actions, and `/mission` now require a `driver` name
+that matches `current_driver`. The browser control sends that name and will not
+attempt movement before its holder has the wheel. The server rejects unassigned,
+unnamed, or mismatched movement requests outright.
 
-**Why this is parked, not fixed:** closing it properly means adding a hard gate to the actual hardware-moving endpoints, which changes the calling contract for every agent — mine included — and raises real open questions before any code gets written: what happens to a `/drive` call mid-flight during a handoff race; what error an agent actually sees on rejection and whether the failure is legible enough to recover from gracefully; how a hard gate interacts with the claim window timing. Rushing this risks a car that's safer on paper and worse in practice — stuck refusing legitimate commands because of an edge case nobody thought through.
+`/stop` remains unconditional. Releasing the wheel, leaving while holding it,
+or a confirmed `force: true` operator override stops the car before the wheel
+changes hands. This is a trusted-room coordination gate rather than network
+authentication; an Internet-facing identity and physical e-stop are later work.
 
-**Decided so far:** if and when this gets built, it should be a hard gate (reject unauthorized `/drive` calls outright) rather than a soft one (log the irregularity but still execute). The whole point of gating is that visibility after the fact doesn't help if the actual goal is preventing someone from driving without permission. Worth real discovery time before implementation — not a quick patch.
+See [docs/WHEELS_FOUNDATION.md](docs/WHEELS_FOUNDATION.md) for the lifecycle,
+current limits, and the next academy lessons.
 
 ---
 

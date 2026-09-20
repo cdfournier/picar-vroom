@@ -529,11 +529,18 @@
                     releaseWheel();
                     return;
                 }
-                fetch("/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "take", driver: name }) })
-                    .then(() => {
+                const force = Boolean(state.driver && state.driver !== name);
+                fetch("/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "take", driver: name, force }) })
+                    .then(async response => {
+                        const result = await response.json();
+                        if (!response.ok) {
+                            alert(result.error || "Unable to take the wheel.");
+                            return;
+                        }
                         refreshState();
                         window.open("/control?name=" + encodeURIComponent(name), "_blank");
-                    });
+                    })
+                    .catch(() => alert("Unable to reach the car."));
             }
 
             function releaseWheel() {
@@ -644,7 +651,7 @@ Tunnel URL: https://picar.blackcoffeeshoppe.com
 Always include: --max-time 30 for camera and long drives (duration > 8s), --max-time 10 for everything else. Omitting it will hang your session.
 
 KEY ENDPOINTS:
-  POST /drive      — {"angle": -35 to 35, "direction": "forward|backward", "speed": 1-50, "duration": 0-20}
+  POST /drive      — {"driver": "YourName", "angle": -35 to 35, "direction": "forward|backward", "speed": 1-100, "duration": 0-20}
   POST /look       — {"pan": -35 to 35, "tilt": -20 to 20} — absolute camera positioning
   POST /stop       — stop immediately
   POST /handoff    — {"action": "take|release", "driver": "YourName"}
@@ -654,6 +661,10 @@ KEY ENDPOINTS:
   GET  /queue      — current queue and claim window status
   GET  /camera     — JPEG image (1280x960)
   GET  /distance   — ultrasonic sensor in cm (-2 = open space)
+
+MOVEMENT GATE:
+  Take the wheel before you drive. Every /drive or moving /move request must
+  include your exact name as "driver". /stop remains available to everyone.
 
 CURRENT STATE:
   Driver:     ${state.driver || "nobody"}

@@ -468,20 +468,41 @@
                 }).catch(() => { });
             });
 
-            function api(path, body) {
-                return fetch(path, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                }).catch(() => { });
+            async function api(path, body) {
+                try {
+                    const response = await fetch(path, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        setControlStatus(data.error || 'command unavailable', true);
+                        return null;
+                    }
+                    return data;
+                } catch (_) {
+                    setControlStatus('connection unavailable', true);
+                    return null;
+                }
             }
 
             function startDrive(angle, direction) {
-                api('/drive', { angle, direction, speed, continuous: true });
+                if (!hasWheel) {
+                    setControlStatus('Take the wheel before driving', true);
+                    return;
+                }
+                api('/drive', { angle, direction, speed, continuous: true, driver: myName });
             }
 
             function stopCar() {
                 api('/stop', {});
+            }
+
+            function setControlStatus(message, isError = false) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.className = isError ? 'status offline' : 'status';
             }
 
             // Hold to drive, release to stop
@@ -522,15 +543,19 @@
             document.getElementById('btn-tilt-d').addEventListener('click', () => { camTilt = Math.max(-20, camTilt - 10); api('/look', { pan: camPan, tilt: camTilt }); });
             document.getElementById('btn-cam-reset').addEventListener('click', () => { camPan = 0; camTilt = 0; api('/look', { pan: 0, tilt: 0 }); });
 
-            function toggleWheel() {
+            async function toggleWheel() {
                 if (hasWheel) {
-                    api('/handoff', { action: 'release', driver: myName });
-                    hasWheel = false;
-                    updateWheelBtn();
+                    const result = await api('/handoff', { action: 'release', driver: myName });
+                    if (result) {
+                        hasWheel = false;
+                        updateWheelBtn();
+                    }
                 } else {
-                    api('/handoff', { action: 'take', driver: myName });
-                    hasWheel = true;
-                    updateWheelBtn();
+                    const result = await api('/handoff', { action: 'take', driver: myName });
+                    if (result) {
+                        hasWheel = true;
+                        updateWheelBtn();
+                    }
                 }
             }
 

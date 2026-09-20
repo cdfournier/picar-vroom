@@ -33,25 +33,27 @@ def get_distance():
     return response.json()["distance"]
 
 
-def send_move(action, duration=0.5):
+def send_move(action, duration=0.5, driver=None):
     payload = {"action": action}
     if action not in ["stop", "look_left", "look_right", "look_center", "look_reset"]:
         payload["duration"] = duration
-    requests.post(f"{PI_URL}/move", json=payload)
+    if action in ["forward", "backward", "left", "right"]:
+        payload["driver"] = driver
+    return requests.post(f"{PI_URL}/move", json=payload)
 
 
 # ─── Safety check ────────────────────────────────────────
-def is_too_close():
+def is_too_close(driver=None):
     distance = get_distance()
     if 0 < distance < DANGER_DISTANCE:
         print(f"  ⚠️  Too close ({distance}cm) — backing up")
-        send_move("backward")
+        send_move("backward", driver=driver)
         time.sleep(1)
         return True
     return False
 
 # ─── Pan search ──────────────────────────────────────────
-def pan_search():
+def pan_search(driver=None):
     """Pan camera to find lost target. Returns steering hint: 'left', 'right', or None."""
     for direction, action in [("left", "look_left"), ("right", "look_right")]:
         send_move(action)
@@ -157,14 +159,14 @@ Respond with ONLY the JSON. No explanation."""
 
 
 # ─── Modes ───────────────────────────────────────────────
-def explore(steps=20, log=None):
+def explore(steps=20, log=None, driver=None):
     print("\n🔍 EXPLORE MODE")
     memory = []
     observations = []
 
     for step in range(steps):
         print(f"\nStep {step + 1}")
-        if is_too_close():
+        if is_too_close(driver=driver):
             continue
 
         image = get_image()
@@ -184,7 +186,7 @@ def explore(steps=20, log=None):
         if len(memory) > 5:
             memory.pop(0)
 
-        send_move(action)
+        send_move(action, driver=driver)
         time.sleep(1)
 
     print("\n📋 Exploration log:")
@@ -192,7 +194,7 @@ def explore(steps=20, log=None):
         print(f"  {i+1}. {obs}")
 
 
-def approach(steps=40, log=None, target=None):
+def approach(steps=40, log=None, target=None, driver=None):
     global TARGET_DESCRIPTION
     if target:
         TARGET_DESCRIPTION = target
@@ -202,7 +204,7 @@ def approach(steps=40, log=None, target=None):
 
     for step in range(steps):
         print(f"\nStep {step + 1}")
-        if is_too_close():
+        if is_too_close(driver=driver):
             continue
 
         image = get_image()
@@ -229,20 +231,20 @@ def approach(steps=40, log=None, target=None):
 
         if not target_found and last_distance == "close":
             print("  Lost target up close — backing up")
-            send_move("backward")
+            send_move("backward", driver=driver)
             last_distance = None
         else:
             memory.append(action)
             if len(memory) > 5:
                 memory.pop(0)
             if not target_found:
-                hint = pan_search()
+                hint = pan_search(driver=driver)
                 if hint:
-                    send_move(hint, duration=0.4)
+                    send_move(hint, duration=0.4, driver=driver)
                 else:
-                    send_move("left", duration=0.3)
+                    send_move("left", duration=0.3, driver=driver)
             else:
-                send_move(action)
+                send_move(action, driver=driver)
 
         time.sleep(1)
 
@@ -255,9 +257,9 @@ def main():
     time.sleep(1)
 
     if mode == MODE_EXPLORE:
-        explore()
+        explore(driver="Operator")
     elif mode == MODE_APPROACH:
-        approach()
+        approach(driver="Operator")
 
 
 if __name__ == "__main__":

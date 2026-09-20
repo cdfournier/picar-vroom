@@ -11,30 +11,30 @@ It is not optional.
 The dance is one continuous execution. All steps chained in a single bash call — no pauses, no deliberation. It should feel fluid, not staggered.
 
 ```bash
-BASE="https://underfed-author-darling.ngrok-free.dev"
-H1='-H "ngrok-skip-browser-warning: true"'
+BASE="https://picar.blackcoffeeshoppe.com"
+DRIVER="YourName"
 H2='-H "Content-Type: application/json"'
 
 # 1. Camera sweep — look left, right, up, center
-curl -s --max-time 10 -X POST "$BASE/look" $H1 $H2 -d '{"pan": -35, "tilt": 0}'
-curl -s --max-time 10 -X POST "$BASE/look" $H1 $H2 -d '{"pan": 35, "tilt": 0}'
-curl -s --max-time 10 -X POST "$BASE/look" $H1 $H2 -d '{"pan": 0, "tilt": 20}'
-curl -s --max-time 10 -X POST "$BASE/look" $H1 $H2 -d '{"pan": 0, "tilt": 0}'
+curl -s --max-time 10 -X POST "$BASE/look" $H2 -d '{"pan": -35, "tilt": 0}'
+curl -s --max-time 10 -X POST "$BASE/look" $H2 -d '{"pan": 35, "tilt": 0}'
+curl -s --max-time 10 -X POST "$BASE/look" $H2 -d '{"pan": 0, "tilt": 20}'
+curl -s --max-time 10 -X POST "$BASE/look" $H2 -d '{"pan": 0, "tilt": 0}'
 
 # 2. Body wiggle — right, left, right, center
-curl -s --max-time 10 -X POST "$BASE/drive" $H1 $H2 -d '{"angle": 30, "direction": "forward", "speed": 30, "duration": 0.4}'
-curl -s --max-time 10 -X POST "$BASE/drive" $H1 $H2 -d '{"angle": -30, "direction": "forward", "speed": 30, "duration": 0.4}'
-curl -s --max-time 10 -X POST "$BASE/drive" $H1 $H2 -d '{"angle": 30, "direction": "forward", "speed": 30, "duration": 0.4}'
-curl -s --max-time 10 -X POST "$BASE/drive" $H1 $H2 -d '{"angle": 0, "direction": "forward", "speed": 20, "duration": 0.3}'
+curl -s --max-time 10 -X POST "$BASE/drive" $H2 -d "{\"driver\": \"$DRIVER\", \"angle\": 30, \"direction\": \"forward\", \"speed\": 30, \"duration\": 0.4}"
+curl -s --max-time 10 -X POST "$BASE/drive" $H2 -d "{\"driver\": \"$DRIVER\", \"angle\": -30, \"direction\": \"forward\", \"speed\": 30, \"duration\": 0.4}"
+curl -s --max-time 10 -X POST "$BASE/drive" $H2 -d "{\"driver\": \"$DRIVER\", \"angle\": 30, \"direction\": \"forward\", \"speed\": 30, \"duration\": 0.4}"
+curl -s --max-time 10 -X POST "$BASE/drive" $H2 -d "{\"driver\": \"$DRIVER\", \"angle\": 0, \"direction\": \"forward\", \"speed\": 20, \"duration\": 0.3}"
 
 # 3. Spin — reverse arc right, forward arc left
-curl -s --max-time 10 -X POST "$BASE/drive" $H1 $H2 -d '{"angle": 35, "direction": "backward", "speed": 40, "duration": 1.0}'
-curl -s --max-time 10 -X POST "$BASE/drive" $H1 $H2 -d '{"angle": -35, "direction": "forward", "speed": 40, "duration": 1.0}'
+curl -s --max-time 10 -X POST "$BASE/drive" $H2 -d "{\"driver\": \"$DRIVER\", \"angle\": 35, \"direction\": \"backward\", \"speed\": 40, \"duration\": 1.0}"
+curl -s --max-time 10 -X POST "$BASE/drive" $H2 -d "{\"driver\": \"$DRIVER\", \"angle\": -35, \"direction\": \"forward\", \"speed\": 40, \"duration\": 1.0}"
 
 # 4. Bow — look down, pause, center
-curl -s --max-time 10 -X POST "$BASE/look" $H1 $H2 -d '{"pan": 0, "tilt": -20}'
+curl -s --max-time 10 -X POST "$BASE/look" $H2 -d '{"pan": 0, "tilt": -20}'
 sleep 1
-curl -s --max-time 10 -X POST "$BASE/look" $H1 $H2 -d '{"pan": 0, "tilt": 0}'
+curl -s --max-time 10 -X POST "$BASE/look" $H2 -d '{"pan": 0, "tilt": 0}'
 ```
 
 ---

@@ -8,6 +8,8 @@ from vilib import Vilib
 from picarx import Picarx
 import time
 
+from wheels_gate import MOTION_ACTIONS, handoff_authorization, motion_authorization, normalized_name
+
 app = Flask(__name__)
 CORS(app)
 px = Picarx()
@@ -111,6 +113,11 @@ def move():
     action = data.get("action")
     duration = data.get("duration", 0.5)
 
+    if action in MOTION_ACTIONS:
+        allowed, message = motion_authorization(current_driver, data.get("driver"))
+        if not allowed:
+            return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+
     if action == "forward":
         px.set_dir_servo_angle(-1)
         px.forward(SPEED)
@@ -166,6 +173,11 @@ def status():
 def mission():
     global current_mission, mission_log
     data = request.get_json(force=True)
+    driver = data.get("driver")
+    allowed, message = motion_authorization(current_driver, driver)
+    if not allowed:
+        return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+
     instruction = data.get("instruction", "")
     mode = data.get("mode", "explore")
     target = data.get("target", None)
@@ -177,10 +189,10 @@ def mission():
         mission_log.append(f"Mission started: {instruction}")
         if mode == "explore":
             from picar_agent import explore
-            explore(steps=20, log=mission_log)
+            explore(steps=20, log=mission_log, driver=driver)
         elif mode == "approach" and target:
             from picar_agent import approach
-            approach(steps=40, log=mission_log, target=target)
+            approach(steps=40, log=mission_log, target=target, driver=driver)
         mission_log.append("Mission complete.")
 
     t = threading.Thread(target=run_mission, daemon=True)
@@ -376,6 +388,10 @@ def drive():
     If continuous=true, starts motors and returns immediately (use /stop to stop).
     If duration > 0, drives for that duration then stops."""
     data = request.get_json(force=True)
+    allowed, message = motion_authorization(current_driver, data.get("driver"))
+    if not allowed:
+        return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+
     angle = max(-35, min(35, int(data.get("angle", 0))))
     direction = data.get("direction", "forward")
     speed = max(1, min(100, int(data.get("speed", SPEED))))
@@ -393,7 +409,7 @@ def drive():
         px.stop()
         px.set_dir_servo_angle(0)
 
-    return jsonify({"ok": True, "angle": angle, "direction": direction, "speed": speed, "continuous": continuous})
+    return jsonify({"ok": True, "driver": current_driver, "angle": angle, "direction": direction, "speed": speed, "continuous": continuous})
 
 
 @app.route("/look", methods=["POST"])
@@ -425,6 +441,7 @@ def car_state():
         "driver": current_driver,
         "cam_pan": cam_pan,
         "cam_tilt": cam_tilt,
+        "motion_gate": "active",
     })
 
 
@@ -549,8 +566,17 @@ def handoff():
     global current_driver, observe_log, passenger_list, driver_queue, wheel_available_since
     data = request.get_json(force=True)
     action = data.get("action", "")
-    driver = data.get("driver", "")
+    driver = normalized_name(data.get("driver"))
+    force = data.get("force", False) is True
+    allowed, message = handoff_authorization(current_driver, driver, action, force)
+    if not allowed:
+        return jsonify({"ok": False, "error": message, "driver": current_driver}), 409
+
     if action == "take":
+        if current_driver and current_driver != driver:
+            px.stop()
+            px.set_dir_servo_angle(0)
+            observe_log.append({"author": "system", "message": f"Operator override: stopped the car and transferred the wheel from {current_driver} to {driver}."})
         current_driver = driver
         wheel_available_since = None
         # Remove from queue if they were waiting
@@ -559,6 +585,8 @@ def handoff():
             passenger_list.append({"name": driver, "joined_at": time.time(), "last_seen_at": time.time()})
         observe_log.append({"author": "system", "message": f"{driver} is now driving."})
     elif action == "release":
+        px.stop()
+        px.set_dir_servo_angle(0)
         observe_log.append({"author": "system", "message": f"{current_driver} has handed off the car."})
         current_driver = None
         # Start claim window if queue has someone waiting
@@ -917,7 +945,7 @@ def get_passengers():
 
 @app.route("/passengers", methods=["POST"])
 def update_passengers():
-    global passenger_list
+    global passenger_list, current_driver
     data = request.get_json(force=True)
     action = data.get("action", "")
     name = data.get("name", "").strip()
@@ -930,10 +958,20 @@ def update_passengers():
     elif action == "leave":
         passenger_list = [p for p in passenger_list if p["name"] != name]
         observe_log.append({"author": "system", "message": f"{name} left the car."})
+        if current_driver == name:
+            px.stop()
+            px.set_dir_servo_angle(0)
+            current_driver = None
+            observe_log.append({"author": "system", "message": f"{name} left while holding the wheel; the car stopped and the wheel was released."})
     elif action == "remove":
         # Operator-initiated removal
         passenger_list = [p for p in passenger_list if p["name"] != name]
         observe_log.append({"author": "system", "message": f"{name} was removed from the car."})
+        if current_driver == name:
+            px.stop()
+            px.set_dir_servo_angle(0)
+            current_driver = None
+            observe_log.append({"author": "system", "message": f"{name} was removed while holding the wheel; the car stopped and the wheel was released."})
     return jsonify({"ok": True, "passengers": passenger_list})
 
 
@@ -949,9 +987,6 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
-
-
 
 
 
