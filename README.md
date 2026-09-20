@@ -210,6 +210,7 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
 | `/look` | POST | Absolute camera positioning: pan and tilt in degrees |
 | `/stop` | POST | Emergency stop |
 | `/handoff` | POST | Take or release the wheel |
+| `/readiness` | GET | Honest preflight state: wheel, camera, and distance |
 | `/queue` | GET/POST | Driver queue: join, leave, view |
 | `/passengers` | GET/POST | Passenger list: join, leave, remove |
 | `/observe` | GET/POST | Shared ride-along log |

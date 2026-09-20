@@ -17,9 +17,16 @@ wheel is the person who can move it.
   movement before it has the wheel.
 - The console's replacement-driver confirmation becomes an explicit
   `force: true` override rather than an invisible overwrite.
+- `GET /readiness` returns one preflight snapshot for future Operator UI work:
+  wheel state, camera freshness, ultrasonic state, and only the facts the car
+  can actually observe.
 
 This is coordination and attribution, not Internet-grade identity security.
 The car remains a trusted, operator-supervised system.
+
+`/readiness` intentionally reports supervision as **manual confirmation
+required** and network as **unverified**. It does not turn either into a false
+green light merely because the Flask server is answering requests.
 
 ## Lifecycle
 

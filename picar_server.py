@@ -9,6 +9,7 @@ from picarx import Picarx
 import time
 
 from wheels_gate import MOTION_ACTIONS, handoff_authorization, motion_authorization, normalized_name
+from wheels_readiness import camera_snapshot, distance_snapshot, readiness_snapshot
 
 app = Flask(__name__)
 CORS(app)
@@ -16,6 +17,11 @@ px = Picarx()
 
 
 camera_lock = threading.Lock()
+camera_health = {
+    "last_success_at": None,
+    "last_error": None,
+    "last_error_at": None,
+}
 
 Vilib.camera_start(vflip=False, hflip=False, size=(1280, 960))
 time.sleep(10)
@@ -95,6 +101,17 @@ def get_camera():
         path = photo_path("current")
         with open(path, "rb") as f:
             response = Response(f.read(), mimetype="image/jpeg")
+        camera_health.update({
+            "last_success_at": time.time(),
+            "last_error": None,
+            "last_error_at": None,
+        })
+    except Exception as error:
+        camera_health.update({
+            "last_error": str(error),
+            "last_error_at": time.time(),
+        })
+        return jsonify({"error": "camera unavailable"}), 503
     finally:
         camera_lock.release()
     response.headers["X-Camera-Mode"] = "lowres"
@@ -103,8 +120,12 @@ def get_camera():
 
 @app.route("/distance", methods=["GET"])
 def get_distance():
-    distance = round(px.ultrasonic.read(), 2)
+    distance = read_distance()
     return jsonify({"distance": distance})
+
+
+def read_distance():
+    return round(px.ultrasonic.read(), 2)
 
 
 @app.route("/move", methods=["POST"])
@@ -443,6 +464,23 @@ def car_state():
         "cam_tilt": cam_tilt,
         "motion_gate": "active",
     })
+
+
+@app.route("/readiness", methods=["GET"])
+def readiness():
+    """An operator-facing preflight snapshot; it does not infer human presence."""
+    try:
+        distance = distance_snapshot(read_distance())
+    except Exception as error:
+        distance = distance_snapshot(None, str(error))
+
+    snapshot = readiness_snapshot(
+        current_driver,
+        camera_snapshot(camera_health, time.time()),
+        distance,
+    )
+    snapshot["generated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return jsonify(snapshot)
 
 
 @app.route("/speak", methods=["POST"])
@@ -987,7 +1025,6 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
 
 
 
