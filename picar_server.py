@@ -455,6 +455,44 @@ def stop():
     return jsonify({"ok": True})
 
 
+@app.route("/pull-over", methods=["POST"])
+def pull_over():
+    """Stop immediately and release the active driver's wheel in one operation."""
+    global current_driver, observe_log, driver_queue, wheel_available_since
+    data = request.get_json(force=True)
+    driver = normalized_name(data.get("driver"))
+    force = data.get("force", False) is True
+
+    # Stopping is always safe, including when the release cannot be accepted.
+    px.stop()
+    px.set_dir_servo_angle(0)
+
+    if not current_driver:
+        return jsonify({"ok": True, "driver": None, "released_driver": None, "stopped": True})
+
+    allowed, message = handoff_authorization(current_driver, driver, "release", force)
+    if not allowed:
+        return jsonify({
+            "ok": False,
+            "error": message,
+            "driver": current_driver,
+            "stopped": True,
+        }), 409
+
+    released_driver = current_driver
+    current_driver = None
+    observe_log.append({"author": "system", "message": f"{released_driver} pulled over and released the wheel."})
+
+    if driver_queue:
+        wheel_available_since = time.time()
+        next_up = driver_queue[0]
+        observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim" + (f" | Intention: {next_up['intention']}" if next_up.get("intention") else "")})
+    else:
+        wheel_available_since = None
+
+    return jsonify({"ok": True, "driver": current_driver, "released_driver": released_driver, "stopped": True})
+
+
 @app.route("/car_state", methods=["GET"])
 def car_state():
     """Current car state for the control page."""
@@ -1025,8 +1063,6 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
-
 
 
 
