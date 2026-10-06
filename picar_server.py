@@ -1,6 +1,8 @@
 from flask import Flask, Response, request, jsonify, render_template
+import atexit
 import os
 from pathlib import Path
+import signal
 import subprocess
 import threading
 from flask_cors import CORS
@@ -10,10 +12,13 @@ import time
 
 from wheels_gate import MOTION_ACTIONS, handoff_authorization, motion_authorization, normalized_name
 from wheels_readiness import camera_snapshot, distance_snapshot, readiness_snapshot
+from motion_watchdog import MotionWatchdog
 
 app = Flask(__name__)
 CORS(app)
 px = Picarx()
+px.stop()
+px.set_dir_servo_angle(0)
 
 
 camera_lock = threading.Lock()
@@ -35,6 +40,66 @@ observe_log = []
 current_driver = None
 cam_pan = 0
 cam_tilt = 0
+MOTION_DEADLINE_SECONDS = max(0.1, float(os.environ.get("PICAR_CONTINUOUS_MOTION_DEADLINE_SECONDS", "1.0")))
+MOTION_WATCHDOG_INTERVAL_SECONDS = min(0.1, MOTION_DEADLINE_SECONDS / 4)
+motion_watchdog = MotionWatchdog(MOTION_DEADLINE_SECONDS)
+
+
+def stop_motion_locked():
+    """Stop and center the car while holding the watchdog's motion lock."""
+    px.stop()
+    px.set_dir_servo_angle(0)
+    motion_watchdog.clear()
+
+
+def start_finite_motion_locked(angle, direction, speed):
+    """Begin a bounded motion and return its generation under the motion lock."""
+    generation = motion_watchdog.begin_finite_motion()
+    px.set_dir_servo_angle(angle)
+    if direction == "forward":
+        px.forward(speed)
+    else:
+        px.backward(speed)
+    return generation
+
+
+def finish_finite_motion(generation):
+    """Stop only when this is still the newest physical motion command."""
+    with motion_watchdog.lock:
+        if motion_watchdog.generation_is_current(generation):
+            stop_motion_locked()
+
+
+def motion_watchdog_loop():
+    """Expire a lost controller at the Pi rather than in the browser."""
+    while True:
+        time.sleep(MOTION_WATCHDOG_INTERVAL_SECONDS)
+        with motion_watchdog.lock:
+            expired_driver = motion_watchdog.expire_if_due()
+            if expired_driver:
+                stop_motion_locked()
+                observe_log.append({
+                    "author": "system",
+                    "message": f"Continuous motion deadline expired for {expired_driver}; PiCar stopped."
+                })
+
+
+threading.Thread(target=motion_watchdog_loop, daemon=True).start()
+
+
+def stop_motion_on_shutdown():
+    with motion_watchdog.lock:
+        stop_motion_locked()
+
+
+def shutdown_signal(signum, frame):
+    stop_motion_on_shutdown()
+    raise SystemExit(0)
+
+
+atexit.register(stop_motion_on_shutdown)
+signal.signal(signal.SIGINT, shutdown_signal)
+signal.signal(signal.SIGTERM, shutdown_signal)
 
 # Voice configuration
 VOICE_MODEL = "SAz9YHcvj6GT2YYXdXww"  # River - Relaxed, Neutral, Informative
@@ -135,34 +200,24 @@ def move():
     duration = data.get("duration", 0.5)
 
     if action in MOTION_ACTIONS:
-        allowed, message = motion_authorization(current_driver, data.get("driver"))
-        if not allowed:
-            return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+        with motion_watchdog.lock:
+            allowed, message = motion_authorization(current_driver, data.get("driver"))
+            if not allowed:
+                return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
 
-    if action == "forward":
-        px.set_dir_servo_angle(-1)
-        px.forward(SPEED)
+            if action == "forward":
+                generation = start_finite_motion_locked(-1, "forward", SPEED)
+            elif action == "backward":
+                generation = start_finite_motion_locked(0, "backward", SPEED)
+            elif action == "left":
+                generation = start_finite_motion_locked(-25, "forward", SPEED)
+            else:
+                generation = start_finite_motion_locked(25, "forward", SPEED)
         time.sleep(duration)
-        px.stop()
-        px.set_dir_servo_angle(0)
-    elif action == "backward":
-        px.backward(SPEED)
-        time.sleep(duration)
-        px.stop()
-    elif action == "left":
-        px.set_dir_servo_angle(-25)
-        px.forward(SPEED)
-        time.sleep(duration)
-        px.stop()
-        px.set_dir_servo_angle(0)
-    elif action == "right":
-        px.set_dir_servo_angle(25)
-        px.forward(SPEED)
-        time.sleep(duration)
-        px.stop()
-        px.set_dir_servo_angle(0)
+        finish_finite_motion(generation)
     elif action == "stop":
-        px.stop()
+        with motion_watchdog.lock:
+            stop_motion_locked()
     elif action == "look_left":
         px.set_cam_pan_angle(-30)
     elif action == "look_right":
@@ -195,9 +250,12 @@ def mission():
     global current_mission, mission_log
     data = request.get_json(force=True)
     driver = data.get("driver")
-    allowed, message = motion_authorization(current_driver, driver)
-    if not allowed:
-        return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+    with motion_watchdog.lock:
+        allowed, message = motion_authorization(current_driver, driver)
+        if not allowed:
+            return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+        # Autonomous bounded routines must not inherit a manual continuous lease.
+        stop_motion_locked()
 
     instruction = data.get("instruction", "")
     mode = data.get("mode", "explore")
@@ -406,31 +464,62 @@ def speak_text(text, voice_param, wait=False, piper_voice_override=None):
 @app.route("/drive", methods=["POST"])
 def drive():
     """Precise drive control: angle, direction, speed, duration.
-    If continuous=true, starts motors and returns immediately (use /stop to stop).
+    If continuous=true, starts a renewable Pi-owned motion lease.
     If duration > 0, drives for that duration then stops."""
     data = request.get_json(force=True)
-    allowed, message = motion_authorization(current_driver, data.get("driver"))
-    if not allowed:
-        return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+    with motion_watchdog.lock:
+        allowed, message = motion_authorization(current_driver, data.get("driver"))
+        if not allowed:
+            return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
 
-    angle = max(-35, min(35, int(data.get("angle", 0))))
-    direction = data.get("direction", "forward")
-    speed = max(1, min(100, int(data.get("speed", SPEED))))
-    duration = max(0, min(20.0, float(data.get("duration", 0))))
-    continuous = data.get("continuous", False)
+        angle = max(-35, min(35, int(data.get("angle", 0))))
+        direction = data.get("direction", "forward")
+        speed = max(1, min(100, int(data.get("speed", SPEED))))
+        duration = max(0, min(20.0, float(data.get("duration", 0))))
+        continuous = data.get("continuous", False) is True
+        motion_id = str(data.get("motion_id") or "").strip()
 
-    px.set_dir_servo_angle(angle - 6)
-    if direction == "forward":
-        px.forward(speed)
-    else:
-        px.backward(speed)
+        if continuous and not motion_id:
+            return jsonify({"ok": False, "error": "motion_id is required for continuous drive", "driver": current_driver}), 400
+        if not continuous and duration <= 0:
+            return jsonify({"ok": False, "error": "duration is required unless continuous is true", "driver": current_driver}), 400
 
-    if not continuous and duration > 0:
-        time.sleep(duration)
-        px.stop()
-        px.set_dir_servo_angle(0)
+        if continuous:
+            px.set_dir_servo_angle(angle - 6)
+            if direction == "forward":
+                px.forward(speed)
+            else:
+                px.backward(speed)
+            motion_watchdog.arm(current_driver, motion_id)
+            return jsonify({
+                "ok": True,
+                "driver": current_driver,
+                "angle": angle,
+                "direction": direction,
+                "speed": speed,
+                "continuous": True,
+                "motion_watchdog": motion_watchdog.snapshot(),
+            })
 
-    return jsonify({"ok": True, "driver": current_driver, "angle": angle, "direction": direction, "speed": speed, "continuous": continuous})
+        finite_generation = start_finite_motion_locked(angle - 6, direction, speed)
+
+    time.sleep(duration)
+    finish_finite_motion(finite_generation)
+    return jsonify({"ok": True, "driver": current_driver, "angle": angle, "direction": direction, "speed": speed, "continuous": False})
+
+
+@app.route("/drive/renew", methods=["POST"])
+def renew_drive():
+    """Renew an active continuous drive without changing its direction."""
+    data = request.get_json(force=True)
+    motion_id = str(data.get("motion_id") or "").strip()
+    with motion_watchdog.lock:
+        allowed, message = motion_authorization(current_driver, data.get("driver"))
+        if not allowed:
+            return jsonify({"ok": False, "error": message, "driver": current_driver}), 403
+        if not motion_watchdog.renew(current_driver, motion_id):
+            return jsonify({"ok": False, "error": "no matching continuous drive is active", "driver": current_driver}), 409
+        return jsonify({"ok": True, "driver": current_driver, "motion_watchdog": motion_watchdog.snapshot()})
 
 
 @app.route("/look", methods=["POST"])
@@ -450,8 +539,8 @@ def look():
 @app.route("/stop", methods=["POST"])
 def stop():
     """Emergency stop."""
-    px.stop()
-    px.set_dir_servo_angle(0)
+    with motion_watchdog.lock:
+        stop_motion_locked()
     return jsonify({"ok": True})
 
 
@@ -463,34 +552,34 @@ def pull_over():
     driver = normalized_name(data.get("driver"))
     force = data.get("force", False) is True
 
-    # Stopping is always safe, including when the release cannot be accepted.
-    px.stop()
-    px.set_dir_servo_angle(0)
+    with motion_watchdog.lock:
+        # Stopping is always safe, including when the release cannot be accepted.
+        stop_motion_locked()
 
-    if not current_driver:
-        return jsonify({"ok": True, "driver": None, "released_driver": None, "stopped": True})
+        if not current_driver:
+            return jsonify({"ok": True, "driver": None, "released_driver": None, "stopped": True})
 
-    allowed, message = handoff_authorization(current_driver, driver, "release", force)
-    if not allowed:
-        return jsonify({
-            "ok": False,
-            "error": message,
-            "driver": current_driver,
-            "stopped": True,
-        }), 409
+        allowed, message = handoff_authorization(current_driver, driver, "release", force)
+        if not allowed:
+            return jsonify({
+                "ok": False,
+                "error": message,
+                "driver": current_driver,
+                "stopped": True,
+            }), 409
 
-    released_driver = current_driver
-    current_driver = None
-    observe_log.append({"author": "system", "message": f"{released_driver} pulled over and released the wheel."})
+        released_driver = current_driver
+        current_driver = None
+        observe_log.append({"author": "system", "message": f"{released_driver} pulled over and released the wheel."})
 
-    if driver_queue:
-        wheel_available_since = time.time()
-        next_up = driver_queue[0]
-        observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim" + (f" | Intention: {next_up['intention']}" if next_up.get("intention") else "")})
-    else:
-        wheel_available_since = None
+        if driver_queue:
+            wheel_available_since = time.time()
+            next_up = driver_queue[0]
+            observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim" + (f" | Intention: {next_up['intention']}" if next_up.get("intention") else "")})
+        else:
+            wheel_available_since = None
 
-    return jsonify({"ok": True, "driver": current_driver, "released_driver": released_driver, "stopped": True})
+        return jsonify({"ok": True, "driver": current_driver, "released_driver": released_driver, "stopped": True})
 
 
 @app.route("/car_state", methods=["GET"])
@@ -501,6 +590,7 @@ def car_state():
         "cam_pan": cam_pan,
         "cam_tilt": cam_tilt,
         "motion_gate": "active",
+        "motion_watchdog": motion_watchdog.snapshot(),
     })
 
 
@@ -644,35 +734,35 @@ def handoff():
     action = data.get("action", "")
     driver = normalized_name(data.get("driver"))
     force = data.get("force", False) is True
-    allowed, message = handoff_authorization(current_driver, driver, action, force)
-    if not allowed:
-        return jsonify({"ok": False, "error": message, "driver": current_driver}), 409
+    with motion_watchdog.lock:
+        allowed, message = handoff_authorization(current_driver, driver, action, force)
+        if not allowed:
+            return jsonify({"ok": False, "error": message, "driver": current_driver}), 409
 
-    if action == "take":
-        if current_driver and current_driver != driver:
-            px.stop()
-            px.set_dir_servo_angle(0)
-            observe_log.append({"author": "system", "message": f"Operator override: stopped the car and transferred the wheel from {current_driver} to {driver}."})
-        current_driver = driver
-        wheel_available_since = None
-        # Remove from queue if they were waiting
-        driver_queue = [q for q in driver_queue if q["name"] != driver]
-        if driver and not any(p["name"] == driver for p in passenger_list):
-            passenger_list.append({"name": driver, "joined_at": time.time(), "last_seen_at": time.time()})
-        observe_log.append({"author": "system", "message": f"{driver} is now driving."})
-    elif action == "release":
-        px.stop()
-        px.set_dir_servo_angle(0)
-        observe_log.append({"author": "system", "message": f"{current_driver} has handed off the car."})
-        current_driver = None
-        # Start claim window if queue has someone waiting
-        if driver_queue:
-            wheel_available_since = time.time()
-            next_up = driver_queue[0]
-            observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim" + (f" | Intention: {next_up['intention']}" if next_up.get('intention') else "")})
-        else:
+        if action == "take":
+            # A new custody period must never inherit a prior driver's motion lease.
+            stop_motion_locked()
+            if current_driver and current_driver != driver:
+                observe_log.append({"author": "system", "message": f"Operator override: stopped the car and transferred the wheel from {current_driver} to {driver}."})
+            current_driver = driver
             wheel_available_since = None
-    return jsonify({"ok": True, "driver": current_driver})
+            # Remove from queue if they were waiting
+            driver_queue = [q for q in driver_queue if q["name"] != driver]
+            if driver and not any(p["name"] == driver for p in passenger_list):
+                passenger_list.append({"name": driver, "joined_at": time.time(), "last_seen_at": time.time()})
+            observe_log.append({"author": "system", "message": f"{driver} is now driving."})
+        elif action == "release":
+            stop_motion_locked()
+            observe_log.append({"author": "system", "message": f"{current_driver} has handed off the car."})
+            current_driver = None
+            # Start claim window if queue has someone waiting
+            if driver_queue:
+                wheel_available_since = time.time()
+                next_up = driver_queue[0]
+                observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim" + (f" | Intention: {next_up['intention']}" if next_up.get('intention') else "")})
+            else:
+                wheel_available_since = None
+        return jsonify({"ok": True, "driver": current_driver})
 
 @app.route("/listen", methods=["POST"])
 def listen():
@@ -1027,28 +1117,27 @@ def update_passengers():
     name = data.get("name", "").strip()
     if not name:
         return jsonify({"error": "name required"}), 400
-    if action == "join":
-        if not any(p["name"] == name for p in passenger_list):
-            passenger_list.append({"name": name, "joined_at": time.time(), "last_seen_at": time.time()})
-            observe_log.append({"author": "system", "message": f"{name} joined the car."})
-    elif action == "leave":
-        passenger_list = [p for p in passenger_list if p["name"] != name]
-        observe_log.append({"author": "system", "message": f"{name} left the car."})
-        if current_driver == name:
-            px.stop()
-            px.set_dir_servo_angle(0)
-            current_driver = None
-            observe_log.append({"author": "system", "message": f"{name} left while holding the wheel; the car stopped and the wheel was released."})
-    elif action == "remove":
-        # Operator-initiated removal
-        passenger_list = [p for p in passenger_list if p["name"] != name]
-        observe_log.append({"author": "system", "message": f"{name} was removed from the car."})
-        if current_driver == name:
-            px.stop()
-            px.set_dir_servo_angle(0)
-            current_driver = None
-            observe_log.append({"author": "system", "message": f"{name} was removed while holding the wheel; the car stopped and the wheel was released."})
-    return jsonify({"ok": True, "passengers": passenger_list})
+    with motion_watchdog.lock:
+        if action == "join":
+            if not any(p["name"] == name for p in passenger_list):
+                passenger_list.append({"name": name, "joined_at": time.time(), "last_seen_at": time.time()})
+                observe_log.append({"author": "system", "message": f"{name} joined the car."})
+        elif action == "leave":
+            passenger_list = [p for p in passenger_list if p["name"] != name]
+            observe_log.append({"author": "system", "message": f"{name} left the car."})
+            if current_driver == name:
+                stop_motion_locked()
+                current_driver = None
+                observe_log.append({"author": "system", "message": f"{name} left while holding the wheel; the car stopped and the wheel was released."})
+        elif action == "remove":
+            # Operator-initiated removal
+            passenger_list = [p for p in passenger_list if p["name"] != name]
+            observe_log.append({"author": "system", "message": f"{name} was removed from the car."})
+            if current_driver == name:
+                stop_motion_locked()
+                current_driver = None
+                observe_log.append({"author": "system", "message": f"{name} was removed while holding the wheel; the car stopped and the wheel was released."})
+        return jsonify({"ok": True, "passengers": passenger_list})
 
 
 @app.route("/control")
@@ -1063,17 +1152,6 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
-
-
-
-
-
-
-
-
-
-
 
 
 
