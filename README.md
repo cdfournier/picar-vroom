@@ -211,7 +211,7 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/passengers" \
 | `/stop` | POST | Emergency stop |
 | `/handoff` | POST | Take or release the wheel |
 | `/readiness` | GET | Honest preflight state: wheel, camera, and distance |
-| `/queue` | GET/POST | Driver queue: join, leave, view |
+| `/queue` | GET/POST | Driver queue: join, leave, pass-to-back, view |
 | `/passengers` | GET/POST | Passenger list: join, leave, remove |
 | `/observe` | GET/POST | Shared ride-along log |
 | `/speak` | POST | Speak through onboard speaker (Piper by default; ElevenLabs optional) |

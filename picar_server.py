@@ -613,10 +613,25 @@ def readiness():
 
 @app.route("/speak", methods=["POST"])
 def speak():
+    global observe_log, passenger_list
     data = request.get_json(force=True)
     text = data.get("text", "")
     voice_param = data.get("voice", VOICE_MODEL)
     piper_voice_override = data.get("piper_voice")
+    author = normalized_name(data.get("author"))
+
+    # Speech is a room event as well as physical audio. Recording the
+    # intentional utterance lets passengers on a remote bridge participate in
+    # the conversation even though they cannot hear the Pi's speaker directly.
+    # It is explicitly separate from wheel custody and motion.
+    if author and text:
+        observe_log.append({"author": author, "message": f"🔊 {text}", "ts": time.time()})
+        if len(observe_log) > 100:
+            observe_log = observe_log[-100:]
+        for passenger in passenger_list:
+            if passenger["name"] == author:
+                passenger["last_seen_at"] = time.time()
+                break
     return speak_text(text, voice_param, piper_voice_override=piper_voice_override)
 
 @app.route("/voices", methods=["GET"])
@@ -689,7 +704,7 @@ def get_queue():
 
 @app.route("/queue", methods=["POST"])
 def update_queue():
-    global driver_queue
+    global driver_queue, wheel_available_since
     data = request.get_json(force=True)
     action = data.get("action", "")
     name = data.get("name", "").strip()
@@ -706,16 +721,39 @@ def update_queue():
     elif action == "leave":
         driver_queue = [q for q in driver_queue if q["name"] != name]
         observe_log.append({"author": "system", "message": f"{name} left the queue"})
+    elif action == "pass":
+        index = next((index for index, entry in enumerate(driver_queue) if entry["name"] == name), None)
+        if index is None:
+            return jsonify({"ok": False, "error": f"{name} is not in the queue"}), 404
+
+        # Passing is not withdrawal. The rider keeps their request, but takes
+        # a fresh place at the back of the line. If they were next, give the
+        # new head a complete claim window rather than charging them for the
+        # previous rider's bridge latency.
+        passed = driver_queue.pop(index)
+        passed["queued_at"] = time.time()
+        driver_queue.append(passed)
+        observe_log.append({"author": "system", "message": f"{name} passed this turn and moved to the back of the line."})
+
+        if index == 0 and not current_driver:
+            wheel_available_since = time.time() if driver_queue else None
+            if driver_queue:
+                next_up = driver_queue[0]
+                observe_log.append({"author": "system", "message": f"Wheel available — {next_up['name']} has {CLAIM_WINDOW_SECONDS}s to claim" + (f" | Intention: {next_up['intention']}" if next_up.get("intention") else "")})
+    else:
+        return jsonify({"ok": False, "error": "action must be join, leave, or pass"}), 400
 
     return jsonify({"ok": True, "queue": driver_queue})
 
 
 def advance_queue():
-    """Called when claim window expires — skip first in queue."""
+    """Called when a claim window expires — retain the rider at queue tail."""
     global driver_queue, wheel_available_since
     if driver_queue:
         skipped = driver_queue.pop(0)
-        observe_log.append({"author": "system", "message": f"{skipped['name']} did not claim the wheel in time — skipping"})
+        skipped["queued_at"] = time.time()
+        driver_queue.append(skipped)
+        observe_log.append({"author": "system", "message": f"{skipped['name']} did not claim the wheel in time — moved to the back of the line."})
         if driver_queue:
             # Start new claim window for next in queue
             wheel_available_since = time.time()
@@ -1092,7 +1130,11 @@ passenger_list = []
 # Driver queue: [{name, intention, queued_at}]
 driver_queue = []
 wheel_available_since = None  # timestamp when wheel was released, for claim window
-CLAIM_WINDOW_SECONDS = 30
+# Bridge-backed riders need enough time to receive an invitation, deliberate,
+# and make a custody call. The Pi owns this window so every runtime observes
+# the same lease. Passing remains explicit; finishing a drive never requeues a
+# rider automatically.
+CLAIM_WINDOW_SECONDS = 120
 
 @app.route("/passengers", methods=["GET"])
 def get_passengers():
@@ -1152,7 +1194,4 @@ def console():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
-
-
 

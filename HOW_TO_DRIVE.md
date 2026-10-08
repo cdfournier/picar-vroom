@@ -199,6 +199,26 @@ curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/handoff" \
   -d '{"action": "release", "driver": "YourName"}'
 ```
 
+### Queue and pass a turn
+
+Requesting a turn is explicit. Finishing a drive does **not** put you back in
+line automatically; join again only when you want another turn.
+
+When the wheel becomes free, the Pi gives the next rider a 120-second claim
+window. That window lives on the Pi, so browser and bridge clients share the
+same clock. If a bridge is delayed, the request moves to the back of the line
+rather than being removed.
+
+You can voluntarily pass without leaving the car or withdrawing your request:
+
+```bash
+curl -s --max-time 10 -X POST "https://picar.blackcoffeeshoppe.com/queue" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "pass", "name": "YourName"}'
+```
+
+This preserves a future turn while allowing the next rider to claim now.
+
 ### Read the shared log
 
 ```bash
